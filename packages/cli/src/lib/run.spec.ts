@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 
-import { formatResult, runCli } from './run';
+import { escapeControlCharacters, formatResult, runCli } from './run';
 
 interface Captured {
   readonly code: number;
@@ -32,7 +32,44 @@ const run = async (
   return { code, out, err };
 };
 
+const runTty = async (argv: string[]): Promise<Captured> => {
+  let out = '';
+  let err = '';
+  const code = await runCli(
+    argv,
+    {
+      stdin: Readable.from(['']),
+      isInteractive: false,
+      isOutputTty: true,
+      writeOut: (text) => {
+        out += text;
+      },
+      writeErr: (text) => {
+        err += text;
+      },
+    },
+    '1.2.3',
+  );
+  return { code, out, err };
+};
+
 describe('runCli', () => {
+  it('escapes terminal control sequences when writing to a tty (F7)', async () => {
+    const result = await runTty(['-d', 'modern', '"\\u001b[31mRED\\u001b[0m"']);
+    expect(result.out).not.toContain('\u001b');
+    expect(result.out).toBe('\\x1b[31mRED\\x1b[0m\n');
+  });
+
+  it('does not escape control characters when output is not a tty', async () => {
+    const result = await run(['-d', 'modern', '"\\u001b[31mRED"']);
+    expect(result.out).toBe('\u001b[31mRED\n');
+  });
+
+  it('escapeControlCharacters leaves newlines and tabs intact', () => {
+    expect(escapeControlCharacters('a\tb\nc')).toBe('a\tb\nc');
+    expect(escapeControlCharacters('x\u0007\u001by')).toBe('x\\x07\\x1by');
+  });
+
   it('evaluates a one-shot expression', async () => {
     expect(await run(['2 ^ 10'])).toEqual({ code: 0, out: '1024\n', err: '' });
   });

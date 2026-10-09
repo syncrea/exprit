@@ -8,6 +8,7 @@ const exitCode = await runCli(
     stdin: process.stdin,
     isInteractive: Boolean(process.stdin.isTTY),
     terminal: process.stdin.isTTY ? process.stdout : undefined,
+    isOutputTty: Boolean(process.stdout.isTTY),
     writeOut: (text) => process.stdout.write(text),
     writeErr: (text) => process.stderr.write(text),
   },
