@@ -24,7 +24,7 @@ export const SITE: SiteConfig = {
   description:
     'A TypeScript-first expression parser and evaluator. A drop-in replacement for expr-eval, plus a dialect that reads like JavaScript. No eval, no new Function.',
   version: exprit.version,
-  repositoryUrl: undefined,
+  repositoryUrl: 'https://github.com/syncrea/exprit',
   installCommand: 'npm i @syncrea/exprit',
 };
 

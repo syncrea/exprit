@@ -12,6 +12,14 @@
     "sandbox"
   ],
   "homepage": "https://exprit.syncrea.ch",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/syncrea/exprit.git",
+    "directory": "packages/exprit"
+  },
+  "bugs": {
+    "url": "https://github.com/syncrea/exprit/issues"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

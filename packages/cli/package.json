@@ -10,6 +10,14 @@
     "exprit"
   ],
   "homepage": "https://exprit.syncrea.ch/getting-started/#command-line",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/syncrea/exprit.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/syncrea/exprit/issues"
+  },
   "license": "MIT",
   "type": "module",
   "bin": {
