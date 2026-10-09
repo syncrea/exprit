@@ -4,6 +4,7 @@ import { Code } from 'astro:components';
 import bundleSize from '../../.generated/bundle-size.json';
 import HeroDemo from '../components/HeroDemo.astro';
 import MiniPlayground from '../components/MiniPlayground.astro';
+import SecurityChecklist from '../components/SecurityChecklist.astro';
 import Spark from '../components/Spark.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { SITE } from '../lib/site';
@@ -58,6 +59,8 @@ const cli = `$ exprit -d modern -v 'xs=[1,2,3]' "xs.map(x => x * x)"
         <Code code={pricing} lang="ts" theme={sparkTheme} />
       </div>
     </section>
+
+    <SecurityChecklist />
 
     <section class="features" aria-labelledby="features-title">
       <div class="container features-inner">

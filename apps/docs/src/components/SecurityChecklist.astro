@@ -1,0 +1,292 @@
+---
+/**
+ * The security checklist on the landing page: what exprit defends against,
+ * mapped to CWE and the OWASP Top 10:2025, each row linked to its tests.
+ * Deliberately a checklist with proofs, not badges: nothing here is a
+ * third-party certification.
+ */
+import {
+  cweHref,
+  repositoryHref,
+  SECURITY_CHECKS,
+  STATUS_LABELS,
+} from '../lib/security-checklist';
+import Spark from './Spark.astro';
+
+const reviewHref = repositoryHref('docs/security-review.md');
+
+/** Splits on `backticks`: odd parts are code. */
+const segments = (text: string): readonly string[] => text.split('`');
+const readmeSecurityHref = repositoryHref('packages/exprit/README.md#security');
+---
+
+<section class="security" id="security" aria-labelledby="security-title">
+  <div class="container security-inner">
+    <div class="security-head">
+      <p class="eyebrow">Security</p>
+      <h2 id="security-title">Built for input you don't trust.</h2>
+      <p class="security-lede">
+        expr-eval, the library exprit replaces, has two published code-execution vulnerabilities:{" "}
+        <a href="https://nvd.nist.gov/vuln/detail/CVE-2025-12735">CVE-2025-12735</a>{" "}
+        and{" "}
+        <a href="https://nvd.nist.gov/vuln/detail/CVE-2025-13204">CVE-2025-13204</a>. Here is what exprit defends
+        against, mapped to <abbr title="Common Weakness Enumeration">CWE</abbr> and the OWASP Top 10:2025. Every row
+        is covered by regression tests that run in CI; follow the links and check for yourself.
+      </p>
+    </div>
+
+    <ul class="checks">
+      {
+        SECURITY_CHECKS.map((check) => {
+          const proof = repositoryHref(check.proof);
+          return (
+            <li class="check">
+              <span class:list={['status', `status-${check.status}`]}>
+                <Spark size={12} fill="currentColor" />
+                {STATUS_LABELS[check.status]}
+              </span>
+              <div class="check-body">
+                <h3>{check.risk}</h3>
+                <p>{segments(check.how).map((part, i) => (i % 2 === 1 ? <code>{part}</code> : part))}</p>
+              </div>
+              <div class="refs">
+                {check.cwes.map((id) => (
+                  <a class="ref" href={cweHref(id)}>
+                    CWE-{id}
+                  </a>
+                ))}
+                {check.owasp ? (
+                  <a class="ref" href={check.owasp.href} title={check.owasp.name}>
+                    {check.owasp.id}
+                  </a>
+                ) : (
+                  check.cwes.length > 0 && <span class="ref ref-none">no OWASP Top 10 category</span>
+                )}
+                {proof && (
+                  <a class="ref ref-proof" href={proof}>
+                    Proof →
+                  </a>
+                )}
+              </div>
+            </li>
+          );
+        })
+      }
+    </ul>
+
+    <aside class="your-part" aria-labelledby="your-part-title">
+      <h3 id="your-part-title">Your part</h3>
+      <ul>
+        <li>
+          A library cannot cap memory or CPU time the way an operating system can. The limits stop the known crash
+          paths, but there is no total memory budget. Run untrusted expressions in a worker or child process with a
+          memory cap and a timeout.
+        </li>
+        <li>
+          Only pass in the data an expression needs. Getters on objects you pass will run, and methods that trust
+          <code>this</code> should not be exposed.
+        </li>
+        <li>Keep the default limits on. Lower them for your use case rather than turning them off.</li>
+      </ul>
+      {
+        (readmeSecurityHref || reviewHref) && (
+          <p class="your-part-links">
+            {readmeSecurityHref && <a href={readmeSecurityHref}>Security guide</a>}
+            {reviewHref && <a href={reviewHref}>Full security review</a>}
+          </p>
+        )
+      }
+    </aside>
+  </div>
+</section>
+
+<style>
+  .security {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .security-inner {
+    padding-top: 112px;
+    padding-bottom: 112px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .security-head {
+    max-width: 760px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .security h2 {
+    margin: 0;
+    font-weight: 600;
+    font-size: clamp(32px, 4vw, 48px);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+  }
+
+  .security-lede {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--soft);
+  }
+
+  .security-lede abbr {
+    text-decoration: none;
+  }
+
+  .checks {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .check {
+    display: grid;
+    grid-template-columns: 128px minmax(0, 1fr) minmax(0, 300px);
+    gap: 12px 24px;
+    align-items: start;
+    padding: 20px 24px;
+  }
+
+  .check + .check {
+    border-top: 1px solid var(--line);
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-self: start;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: var(--tint);
+    color: var(--accent-ink);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .check-body h3 {
+    margin: 0 0 4px;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .check-body p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--soft);
+  }
+
+  .check-body code,
+  .your-part code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--raised);
+    color: var(--text);
+  }
+
+  .refs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .ref {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 9px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--soft);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  a.ref:hover {
+    border-color: var(--line-strong);
+    color: var(--text);
+  }
+
+  .ref-none {
+    border-style: dashed;
+    color: var(--muted);
+  }
+
+  .ref-proof {
+    color: var(--accent-ink);
+    border-color: transparent;
+    background: var(--tint);
+  }
+
+  .your-part {
+    max-width: 860px;
+    padding: 24px 28px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg);
+  }
+
+  .your-part h3 {
+    margin: 0 0 10px;
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .your-part ul {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--soft);
+  }
+
+  .your-part-links {
+    margin: 16px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    font-weight: 500;
+    font-size: 15px;
+  }
+
+  @media (max-width: 900px) {
+    .check {
+      grid-template-columns: minmax(0, 1fr);
+      padding: 18px;
+    }
+
+    .refs {
+      justify-content: flex-start;
+    }
+
+    .security-inner {
+      padding-top: 80px;
+      padding-bottom: 80px;
+    }
+  }
+</style>

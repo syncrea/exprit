@@ -333,3 +333,31 @@ test.describe('playground example in the URL', () => {
     await expect(select(page)).toHaveValue('cart-total');
   });
 });
+
+test('the landing page lists the security checks with their proofs', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const section = page.locator('#security');
+  await expect(
+    section.getByRole('heading', { level: 2, name: /input you don't trust/ }),
+  ).toBeVisible();
+  const checks = section.locator('.check');
+  await expect(checks).toHaveCount(9);
+  // Every row links to the tests behind it, on GitHub.
+  const proofs = section.locator('.ref-proof');
+  await expect(proofs).toHaveCount(9);
+  for (const href of await proofs.evaluateAll((links) =>
+    links.map((link) => link.getAttribute('href')),
+  )) {
+    expect(href).toMatch(
+      /^https:\/\/github\.com\/syncrea\/exprit\/blob\/main\//,
+    );
+  }
+  await expect(
+    section.getByRole('link', { name: 'CVE-2025-12735' }),
+  ).toHaveAttribute('href', 'https://nvd.nist.gov/vuln/detail/CVE-2025-12735');
+  await expect(
+    section.getByRole('heading', { level: 3, name: 'Your part' }),
+  ).toBeVisible();
+});
