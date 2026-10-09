@@ -201,6 +201,14 @@ export const PRESETS: readonly Preset[] = [
     variables: { user: json('{ "name": "Ada" }') },
   },
   {
+    id: 'limit',
+    label: 'Stopped: a resource limit',
+    group: 'safety',
+    note: 'Default limits stop runaway strings and arrays before they are allocated, so a hostile expression cannot crash your process.',
+    sources: { modern: '"ab".repeat(n)' },
+    variables: { n: num('100000000') },
+  },
+  {
     id: 'loose-equality',
     label: 'Rejected: loose equality',
     group: 'safety',

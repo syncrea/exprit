@@ -147,7 +147,7 @@ const noAssignments = createEnvironment({ operators: { assignment: false } });
 parse('x = 1', noAssignments); // throws: parse error [1:3]: Unknown character "="
 ```
 
-The legacy built-ins are expr-eval's: operators such as `sin`, `sqrt`, `abs`, `round` and `not`; functions such as `min`, `max`, `pow`, `roundTo`, `map`, `filter`, `fold` and `sum`; and the constants `E` and `PI`. In the legacy dialect, `operators` switches individual operators off with expr-eval's option names, and `allowMemberAccess: false` rejects `a.b`. The [API reference](/api/#environmentoptions) lists every option.
+The legacy built-ins are expr-eval's: operators such as `sin`, `sqrt`, `abs`, `round` and `not`; functions such as `min`, `max`, `pow`, `roundTo`, `map`, `filter`, `fold` and `sum`; and the constants `E` and `PI`. `operators` switches individual operators off with expr-eval's option names, in both dialects. In the modern dialect they apply by meaning: `multiply: false` disables `*`, `logical: false` disables `&&`, `||`, `!` and `??`, and `power: false` disables `**`. `allowMemberAccess: false` rejects `a.b`, `a?.b`, `a[i]` and method calls. Options that only exist in expr-eval's syntax, such as `concatenate`, `factorial`, `in`, `assignment` and `fndef`, only affect the legacy dialect. The [API reference](/api/#environmentoptions) lists every option.
 
 ## Parse once, evaluate often
 
@@ -197,7 +197,7 @@ try {
 }
 ```
 
-Unsupported JavaScript in the modern dialect gets a specific message rather than a generic one, for example `Use "===" instead of "==": loose equality is not supported`. Evaluation errors, such as an undefined name, are plain `Error`s. When an expression reaches for a blocked name, evaluation throws an `ExpressionSecurityError`.
+Unsupported JavaScript in the modern dialect gets a specific message rather than a generic one, for example `Use "===" instead of "==": loose equality is not supported`. Evaluation errors, such as an undefined name, are plain `Error`s. When an expression reaches for a blocked name, evaluation throws an `ExpressionSecurityError`, and when it goes past a resource limit, an `ExpressionLimitError` whose `limit` field names the limit, for example `'maxStringLength'`.
 
 <TryIt id="errors" source="qty == 3" dialect="modern" scope={{ qty: 3 }} />
 
@@ -208,7 +208,9 @@ exprit never executes code: there is no `eval`, no `new Function`, and no genera
 - **Only what you pass.** Variables are the own properties of your object; inherited names such as `toString` are not visible.
 - **Blocked names.** `__proto__`, `prototype`, `constructor`, `caller`, `callee`, `arguments` and the `__define*`/`__lookup*` accessors are rejected as names, members and object keys.
 - **Own properties and safe methods.** Member access returns own properties of objects and arrays. Inherited members are invisible unless they are non-mutating methods on the safe list, so `xs.push(4)` does not exist inside an expression.
-- **Frozen globals.** The modern dialect sees frozen copies of `Math`, `Number`, `JSON` and a few others, never the real built-ins.
+- **Frozen globals.** The modern dialect sees `Math`, `Number`, `JSON` and a few others as frozen objects. The functions inside them are the real built-ins, but an expression can neither replace nor change them.
+- **No borrowed `this`.** A method an expression copies onto an object it built runs without a receiver, so `({ m: account.transfer }).m()` cannot point your method at a fake account.
+- **No source leaks.** Your functions turn into `[Function]` in strings and printed output, not into their source code.
 - **No mutation of inputs.** Modern expressions cannot assign. Legacy assignments go to a copy of your variables.
 
 <TryIt
@@ -217,6 +219,37 @@ exprit never executes code: there is no `eval`, no `new Function`, and no genera
   dialect="modern"
   scope={{ user: { name: 'Ada' } }}
 />
+
+### Resource limits
+
+Every environment has limits on the size of strings, arrays and objects an expression can build, on nesting depth and source length, and on evaluation steps. They are on by default and generous enough for real formulas. Going past one throws an `ExpressionLimitError` before the memory is allocated, so a hostile `"x".repeat(1e9)` fails cleanly instead of crashing your process:
+
+<TryIt id="limits" source={'"ab".repeat(1e8)'} dialect="modern" />
+
+Lower them to what your formulas need; `Infinity` turns a limit off:
+
+```ts
+import { createEnvironment, DEFAULT_LIMITS } from '@syncrea/exprit';
+
+DEFAULT_LIMITS;
+// { maxStringLength: 10_000_000, maxArrayLength: 10_000_000, maxObjectKeys: 1_000_000,
+//   maxDepth: 1_000, maxSourceLength: 100_000, maxSteps: 100_000_000 }
+
+const env = createEnvironment({
+  dialect: 'modern',
+  limits: { maxStringLength: 100_000, maxSourceLength: 2_000 },
+});
+```
+
+### What is still your job
+
+A library can't cap memory or CPU time the way an operating system can. The limits apply to each value separately, so an expression that builds many values just under the limit can still exhaust the heap, and runaway recursion ends in a catchable `RangeError` rather than a typed error. For input from people you don't trust:
+
+- **Run it out of process.** Evaluate in a worker thread or a child process started with a memory cap (`--max-old-space-size`) and kill it after a timeout.
+- **Pass only what it needs.** Getters on objects you pass will run, and methods that rely on `this` should not be exposed.
+- **Keep the limits on.** Lower them for your use case rather than turning them off.
+
+The [security section](/#security) maps all of this to CWE and the OWASP Top 10, with links to the tests that prove it.
 
 ## Command line
 

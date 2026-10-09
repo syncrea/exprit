@@ -361,3 +361,29 @@ test('the landing page lists the security checks with their proofs', async ({
     section.getByRole('heading', { level: 3, name: 'Your part' }),
   ).toBeVisible();
 });
+
+test.describe('resource limits in the docs', () => {
+  test('the guide shows a limit stopping an expression', async ({ page }) => {
+    await page.goto('/getting-started/');
+    const tryIt = page.locator('exprit-live.try', {
+      has: page.locator('input[value*="repeat"]'),
+    });
+    await expect(tryIt.locator('[data-result]')).toHaveText(
+      /exceeds the limit of 10000000/,
+    );
+  });
+
+  test('the playground preset stops at a limit and works below it', async ({
+    page,
+  }) => {
+    await page.goto('/playground/?example=limit');
+    await expect(page.locator('[data-result]')).toHaveText(
+      /string length 200000000 exceeds the limit of 10000000/,
+    );
+    await expect(page.locator('[data-meta]')).toHaveText(/^stopped by a limit/);
+
+    const n = page.locator('.pg-var[data-name="n"] .pg-var-value .field');
+    await n.fill('3');
+    await expect(page.locator('[data-result]')).toHaveText('"ababab"');
+  });
+});

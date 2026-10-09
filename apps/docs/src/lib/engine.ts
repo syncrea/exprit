@@ -6,6 +6,7 @@
 import {
   createEnvironment,
   evaluate,
+  ExpressionLimitError,
   ExpressionSecurityError,
   ExpressionSyntaxError,
   parse,
@@ -75,11 +76,24 @@ export interface ValueOutcome {
 
 export interface RuntimeProblem {
   /** `security` when the sandbox blocked a name such as `constructor`. */
-  readonly kind: 'runtime' | 'security';
+  readonly kind: 'runtime' | 'security' | 'limit';
   readonly message: string;
 }
 
 export type EvaluationOutcome = ValueOutcome | RuntimeProblem;
+
+const problemKind = (error: unknown): RuntimeProblem['kind'] => {
+  if (error instanceof ExpressionSecurityError) {
+    return 'security';
+  }
+  return error instanceof ExpressionLimitError ? 'limit' : 'runtime';
+};
+
+const PROBLEM_LABELS: Readonly<Record<RuntimeProblem['kind'], string>> = {
+  security: 'blocked by the sandbox',
+  limit: 'stopped by a limit',
+  runtime: 'error',
+};
 
 export const evaluateSafely = (
   expression: ParsedExpression,
@@ -89,7 +103,7 @@ export const evaluateSafely = (
     return { kind: 'value', value: evaluate(expression, variables) };
   } catch (error) {
     return {
-      kind: error instanceof ExpressionSecurityError ? 'security' : 'runtime',
+      kind: problemKind(error),
       message: error instanceof Error ? error.message : String(error),
     };
   }
@@ -276,7 +290,12 @@ export const viewOutcome = (outcome: RunOutcome): OutcomeView => {
   }
   return {
     text: outcome.message,
-    type: outcome.kind === 'security' ? 'blocked by the sandbox' : 'error',
+    type:
+      outcome.kind === 'runtime' ||
+      outcome.kind === 'security' ||
+      outcome.kind === 'limit'
+        ? PROBLEM_LABELS[outcome.kind]
+        : 'error',
     isLong: false,
     isError: true,
   };
