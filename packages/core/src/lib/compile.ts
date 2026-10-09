@@ -14,6 +14,8 @@ import {
   isNullish,
   isUnresolvable,
   lookupOperator,
+  markOwned,
+  receiverFor,
   resolveIdentifier,
   SHORT_CIRCUIT,
   spreadProperties,
@@ -38,7 +40,7 @@ const compileElements = (
     for (const part of parts) {
       appendElement(result, part.run(context), part.spread, context.registry);
     }
-    return result;
+    return markOwned(result);
   };
 };
 
@@ -155,7 +157,7 @@ const compileNodeInner = (node: ExpressionNode): Compiled => {
           );
           return optional && isNullish(fn)
             ? SHORT_CIRCUIT
-            : callValue(fn, receiver, args(context));
+            : callValue(fn, receiverFor(receiver), args(context));
         };
       }
       const target = compileNode(callee);
@@ -199,7 +201,7 @@ const compileNodeInner = (node: ExpressionNode): Compiled => {
             );
           }
         }
-        return assertObjectSize(result, context.registry);
+        return markOwned(assertObjectSize(result, context.registry));
       };
     }
     case 'Arrow': {

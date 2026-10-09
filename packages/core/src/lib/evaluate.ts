@@ -14,6 +14,8 @@ import {
   isNullish,
   isUnresolvable,
   lookupOperator,
+  markOwned,
+  receiverFor,
   resolveIdentifier,
   SHORT_CIRCUIT,
   spreadProperties,
@@ -40,7 +42,7 @@ const evaluateElements = (
       appendElement(result, evaluateNode(element, context), false, context.registry);
     }
   }
-  return result;
+  return markOwned(result);
 };
 
 const evaluateObject = (
@@ -59,7 +61,7 @@ const evaluateObject = (
       );
     }
   }
-  return assertObjectSize(result, context.registry);
+  return markOwned(assertObjectSize(result, context.registry));
 };
 
 const evaluateCall = (node: CallNode, context: Context): unknown => {
@@ -88,7 +90,11 @@ const evaluateCall = (node: CallNode, context: Context): unknown => {
   if (node.optional && isNullish(fn)) {
     return SHORT_CIRCUIT;
   }
-  return callValue(fn, receiver, evaluateElements(node.arguments, context));
+  return callValue(
+    fn,
+    receiverFor(receiver),
+    evaluateElements(node.arguments, context),
+  );
 };
 
 const evaluateNode = (node: ExpressionNode, context: Context): unknown => {

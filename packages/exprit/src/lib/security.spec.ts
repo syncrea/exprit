@@ -128,18 +128,31 @@ describe('sandboxing', () => {
     expect(() => legacy.parse('constructor(x) = 1')).toThrow(/cannot be used/);
   });
 
-  it('does not let an expression choose the receiver of a host method', () => {
+  it('does not let an expression choose the receiver of a host method (F4)', () => {
     const account = {
       owner: 'host',
       describe(this: { owner?: string } | undefined): string {
         return this?.owner ?? 'no receiver';
       },
     };
+    // Array-callback thisArg is still dropped.
     expect(
       modern.evaluate('[0].map(account.describe, { owner: "attacker" })', {
         account,
       }),
     ).toEqual(['no receiver']);
+    // A method copied onto an attacker-built object literal is called with no
+    // receiver, not the literal the attacker crafted.
+    for (const run of [
+      (source: string): unknown => modern.evaluate(source, { account }),
+      (source: string): unknown => modern.parse(source).compile()({ account }),
+    ]) {
+      expect(run('({ m: account.describe, owner: "x" }).m()')).toBe(
+        'no receiver',
+      );
+      // A host object passed as a variable keeps its natural receiver.
+      expect(run('account.describe()')).toBe('host');
+    }
   });
 
   it('keeps the shared safe-method whitelist frozen', () => {
