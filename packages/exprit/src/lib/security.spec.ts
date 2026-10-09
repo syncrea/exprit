@@ -1,5 +1,9 @@
 import { createRequire } from 'node:module';
 
+import {
+  ExpressionLimitError,
+  ExpressionSyntaxError,
+} from '@exprit/core';
 import { DEFAULT_SAFE_METHODS } from '@exprit/registry';
 
 import { compile, evaluate, parse } from './api';
@@ -193,5 +197,118 @@ describe('modern dialect honours hardening switches (F2)', () => {
     });
     expect(evaluate(parse('2 + 3', env))).toBe(5);
     expect(compile(parse('2 + 3', env))()).toBe(5);
+  });
+});
+
+// F1: a short expression could allocate an uncatchable amount of memory. The
+// amplifying methods and string/array growth must throw a catchable
+// ExpressionLimitError before the allocation, in both evaluate and compile.
+describe('resource limits stop memory exhaustion (F1)', () => {
+  const modern = createEnvironment({ dialect: 'modern' });
+  const legacy = createEnvironment();
+
+  const bothThrow = (
+    source: string,
+    env = modern,
+    vars: Record<string, unknown> = {},
+  ): void => {
+    expect(() => evaluate(parse(source, env), vars)).toThrow(
+      ExpressionLimitError,
+    );
+    expect(() => compile(parse(source, env))(vars)).toThrow(
+      ExpressionLimitError,
+    );
+  };
+
+  it.each([
+    '"x".padStart(300000000)',
+    '"x".padStart(300000000).split("")',
+    '"a".repeat(1000000000)',
+    '"x".padEnd(99999999)',
+    '"ab".repeat(500000000)',
+    '"a,b".repeat(20000000).split(",")',
+  ])('rejects amplifying string method %s', (source) => {
+    bothThrow(source);
+  });
+
+  it('rejects string concatenation past the limit', () => {
+    const base = { s: 'x'.repeat(6_000_000) };
+    bothThrow('s + s', modern, base);
+    bothThrow('`${s}${s}`', modern, base);
+    bothThrow('s || s', legacy, base);
+  });
+
+  it('rejects array growth past the limit', () => {
+    const big = { a: new Array(6_000_000).fill(0) };
+    bothThrow('a.concat(a)', modern, big);
+    bothThrow('[...a, ...a]', modern, big);
+    bothThrow('[a, a].flat()', modern, { a: big.a });
+  });
+
+  it('honours a custom lower limit and leaves normal use working', () => {
+    const tight = createEnvironment({
+      dialect: 'modern',
+      limits: { maxStringLength: 100 },
+    });
+    expect(() => evaluate(parse('"x".repeat(1000)', tight))).toThrow(
+      ExpressionLimitError,
+    );
+    expect(evaluate(parse('"x".repeat(50)', tight))).toHaveLength(50);
+  });
+
+  it('lets Infinity disable a limit', () => {
+    const unlimited = createEnvironment({
+      dialect: 'modern',
+      limits: { maxStringLength: Infinity },
+    });
+    expect(evaluate(parse('"x".repeat(1000000)', unlimited))).toHaveLength(
+      1_000_000,
+    );
+  });
+
+  it('enforces a step budget in evaluate and compile', () => {
+    const budgeted = createEnvironment({
+      dialect: 'modern',
+      limits: { maxSteps: 50 },
+    });
+    const source = 'items.map(x => x * 2).map(x => x + 1)';
+    const vars = { items: new Array(1000).fill(1) };
+    expect(() => evaluate(parse(source, budgeted), vars)).toThrow(
+      ExpressionLimitError,
+    );
+    expect(() => compile(parse(source, budgeted))(vars)).toThrow(
+      ExpressionLimitError,
+    );
+  });
+});
+
+// F3: deeply nested or long-chained input overflowed the stack across parse,
+// evaluate, compile, print and simplify. The parser now fails fast.
+describe('parser depth and length limits (F3)', () => {
+  it.each<['legacy' | 'modern']>([['legacy'], ['modern']])(
+    'rejects deeply nested input in the %s dialect',
+    (dialect) => {
+      const env = createEnvironment({ dialect });
+      const nested = '('.repeat(5000) + '1' + ')'.repeat(5000);
+      expect(() => parse(nested, env)).toThrow(ExpressionSyntaxError);
+      expect(() => parse(nested, env)).toThrow(/nested too deeply/);
+    },
+  );
+
+  it('rejects a long left-associative chain before it builds a deep tree', () => {
+    expect(() => parse('1' + '+1'.repeat(10000))).toThrow(
+      /nested too deeply/,
+    );
+  });
+
+  it('rejects source longer than the limit', () => {
+    const env = createEnvironment({ limits: { maxSourceLength: 100 } });
+    expect(() => parse('1 + '.repeat(100) + '1', env)).toThrow(
+      /too long/,
+    );
+  });
+
+  it('accepts ordinary nesting within the limit', () => {
+    expect(evaluate(parse('((((1 + 2))))'))).toBe(3);
   });
 });

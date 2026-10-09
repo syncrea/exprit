@@ -1,4 +1,6 @@
 import {
+  assertMaxDepth,
+  DEFAULT_LIMITS,
   ExpressionSyntaxError,
   isBlockedName,
   type ElementNode,
@@ -94,6 +96,10 @@ export interface ModernGrammar {
   readonly allowMemberAccess: boolean;
   /** Whether a modern operator symbol (`+`, `**`, `&&`, `?`, `[`, ...) is enabled. */
   readonly isOperatorEnabled: (operator: string) => boolean;
+  /** Longest source string accepted; defaults to the standard limit. */
+  readonly maxSourceLength?: number;
+  /** Deepest AST accepted; defaults to the standard limit. */
+  readonly maxDepth?: number;
 }
 
 const DEFAULT_GRAMMAR: ModernGrammar = {
@@ -114,6 +120,15 @@ export const parseModern = (
   source: string,
   grammar: ModernGrammar = DEFAULT_GRAMMAR,
 ): ExpressionNode => {
+  const maxSourceLength = grammar.maxSourceLength ?? DEFAULT_LIMITS.maxSourceLength;
+  const maxDepth = grammar.maxDepth ?? DEFAULT_LIMITS.maxDepth;
+  if (source.length > maxSourceLength) {
+    throw new ExpressionSyntaxError(
+      `expression is too long (${source.length} > ${maxSourceLength})`,
+      source,
+      0,
+    );
+  }
   const tokens = tokenize(source, MODERN_TOKENIZER_CONFIG);
   const parenthesized = new WeakSet<ExpressionNode>();
   const inOptionalChain = new WeakSet<ExpressionNode>();
@@ -563,11 +578,16 @@ export const parseModern = (
     };
   };
 
+  let parseDepth = 0;
   function parse(rightBindingPower: number): ExpressionNode {
+    if (++parseDepth > maxDepth) {
+      fail('expression is nested too deeply', peek().start);
+    }
     let left = nud(advance());
     while (rightBindingPower < leftBindingPower(peek())) {
       left = led(advance(), left);
     }
+    parseDepth--;
     return left;
   }
 
@@ -582,5 +602,8 @@ export const parseModern = (
     }
     fail(`Unexpected ${describe(rest)}`, rest.start);
   }
+  assertMaxDepth(root, maxDepth, () =>
+    fail('expression is nested too deeply', 0),
+  );
   return root;
 };

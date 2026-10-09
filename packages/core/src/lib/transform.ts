@@ -163,7 +163,12 @@ export const simplify = (
       case 'Member':
         return next.object.type === 'Literal' && !next.optional
           ? literal(
-              readMember(next.object.value, next.property, registry.methods),
+              readMember(
+                next.object.value,
+                next.property,
+                registry.methods,
+                registry.limits,
+              ),
             )
           : next;
       default:

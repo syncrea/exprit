@@ -202,6 +202,7 @@ export class CompatParser {
       consts: this.consts,
       operators: this.options.operators,
       allowMemberAccess: this.options.allowMemberAccess !== false,
+      limits: this.options.limits,
     });
   }
 

@@ -1,7 +1,10 @@
-import type {
-  ExpressionFunction,
-  IdentifierResolver,
-  Registry,
+import {
+  assertStringLength,
+  resolveLimits,
+  type ExpressionFunction,
+  type IdentifierResolver,
+  type Limits,
+  type Registry,
 } from '@exprit/core';
 
 import { MODERN_GLOBALS } from './globals';
@@ -70,9 +73,23 @@ const createModernResolver =
     return { found: false, message: `${name} is not defined` };
   };
 
+/**
+ * JavaScript `+` guarded so string concatenation cannot build a string past
+ * the limit; numeric addition is untouched. The check runs before the new
+ * string is allocated.
+ */
+const guardedPlus = (limits: Limits): ExpressionFunction =>
+  ((a: unknown, b: unknown): unknown => {
+    if (typeof a === 'string' || typeof b === 'string') {
+      assertStringLength(String(a).length + String(b).length, limits);
+    }
+    return (a as number) + (b as number);
+  }) as ExpressionFunction;
+
 /** Builds the registry for the modern, JavaScript-flavoured dialect. */
 export const createModernRegistry = (
   tables: Partial<ModernTables> = {},
+  limits: Limits = resolveLimits(),
 ): Registry => {
   const resolved: ModernTables = {
     functions: tables.functions ?? {},
@@ -81,10 +98,11 @@ export const createModernRegistry = (
   };
   return {
     unaryOps: MODERN_UNARY_OPS,
-    binaryOps: MODERN_BINARY_OPS,
+    binaryOps: { ...MODERN_BINARY_OPS, '+': guardedPlus(limits) },
     functions: resolved.functions,
     consts: resolved.consts,
     methods: DEFAULT_SAFE_METHODS,
     resolveIdentifier: createModernResolver(resolved),
+    limits,
   };
 };

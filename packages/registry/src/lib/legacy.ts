@@ -1,7 +1,11 @@
-import type {
-  ExpressionFunction,
-  IdentifierResolver,
-  Registry,
+import {
+  assertArrayLength,
+  assertStringLength,
+  resolveLimits,
+  type ExpressionFunction,
+  type IdentifierResolver,
+  type Limits,
+  type Registry,
 } from '@exprit/core';
 
 import * as fn from './legacy-functions';
@@ -134,14 +138,36 @@ const createLegacyResolver =
  * Builds the registry for the legacy dialect over the given tables. The
  * tables are read live, so functions added after parsing are still found.
  */
+/**
+ * expr-eval's `||` concatenation, guarded so neither the concatenated string
+ * nor the concatenated array can exceed the limits. The check runs before the
+ * result is allocated.
+ */
+const guardedConcat = (
+  concat: ExpressionFunction,
+  limits: Limits,
+): ExpressionFunction =>
+  ((a: unknown, b: unknown): unknown => {
+    if (Array.isArray(a) && Array.isArray(b)) {
+      assertArrayLength(a.length + b.length, limits);
+    } else {
+      assertStringLength(String(a).length + String(b).length, limits);
+    }
+    return (concat as (x: unknown, y: unknown) => unknown)(a, b);
+  }) as ExpressionFunction;
+
 export const createLegacyRegistry = (
   tables: LegacyTables = createLegacyTables(),
   isOperatorEnabled: (operator: string) => boolean = () => true,
+  limits: Limits = resolveLimits(),
 ): Registry => ({
   unaryOps: tables.unaryOps,
-  binaryOps: tables.binaryOps,
+  binaryOps: Object.hasOwn(tables.binaryOps, '||')
+    ? { ...tables.binaryOps, '||': guardedConcat(tables.binaryOps['||'], limits) }
+    : tables.binaryOps,
   functions: tables.functions,
   consts: tables.consts,
   methods: DEFAULT_SAFE_METHODS,
   resolveIdentifier: createLegacyResolver(tables, isOperatorEnabled),
+  limits,
 });

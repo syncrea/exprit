@@ -1,4 +1,10 @@
 import type { LogicalOperator } from './ast';
+import {
+  assertArrayLength,
+  assertObjectKeys,
+  assertStringLength,
+  ExpressionLimitError,
+} from './limits';
 import { assertAllowedName } from './member-access';
 import type { Registry, Scope } from './registry';
 
@@ -9,10 +15,33 @@ import type { Registry, Scope } from './registry';
 
 export type Callable = (...args: unknown[]) => unknown;
 
+/** A mutable step budget, shared across the scopes of one evaluation. */
+export interface Budget {
+  steps: number;
+}
+
 export interface Context {
   readonly registry: Registry;
   readonly scope: Scope;
+  /** Present when a finite `maxSteps` limit is in force. */
+  readonly budget?: Budget;
 }
+
+/** Creates the shared step budget for one top-level evaluation, if finite. */
+export const createBudget = (registry: Registry): Budget | undefined =>
+  Number.isFinite(registry.limits.maxSteps)
+    ? { steps: registry.limits.maxSteps }
+    : undefined;
+
+/** Charges one evaluation step; throws once the budget is spent. */
+export const tick = (budget: Budget | undefined): void => {
+  if (budget !== undefined && --budget.steps < 0) {
+    throw new ExpressionLimitError(
+      'maxSteps',
+      'evaluation exceeded the maximum number of steps',
+    );
+  }
+};
 
 /** Marks a short-circuited optional chain while it unwinds to its `Chain` node. */
 export const SHORT_CIRCUIT: unique symbol = Symbol('short-circuit');
@@ -72,6 +101,37 @@ export const spreadValues = (value: unknown): unknown[] => {
     return [...value];
   }
   throw new TypeError(`${typeof value} is not iterable`);
+};
+
+/**
+ * Appends an element or a spread to an array under construction, checking the
+ * array-length limit as it grows so a chain of spreads cannot allocate a huge
+ * array before the limit is noticed.
+ */
+export const appendElement = (
+  acc: unknown[],
+  value: unknown,
+  spread: boolean,
+  registry: Registry,
+): void => {
+  if (spread) {
+    for (const item of spreadValues(value)) {
+      acc.push(item);
+      assertArrayLength(acc.length, registry.limits);
+    }
+  } else {
+    acc.push(value);
+    assertArrayLength(acc.length, registry.limits);
+  }
+};
+
+/** Checks that a freshly built object literal stays within the key limit. */
+export const assertObjectSize = (
+  object: Record<string, unknown>,
+  registry: Registry,
+): Record<string, unknown> => {
+  assertObjectKeys(Object.keys(object).length, registry.limits);
+  return object;
 };
 
 export const assignProperty = (
@@ -158,14 +218,24 @@ export const assignVariable = (
   return value;
 };
 
+/**
+ * Coerces a value to a string the way templates and `String()` do, but renders
+ * functions as an opaque `[Function]` token instead of their full source, so a
+ * host function passed in as a variable does not leak its body (F5).
+ */
+export const stringifyValue = (value: unknown): string =>
+  typeof value === 'function' ? '[Function]' : String(value);
+
 export const concatTemplate = (
   quasis: readonly string[],
   values: readonly unknown[],
+  registry: Registry,
 ): string =>
-  quasis.reduce(
-    (text, quasi, i) =>
+  quasis.reduce((text, quasi, i) => {
+    const next =
       i < values.length
-        ? `${text}${quasi}${String(values[i])}`
-        : `${text}${quasi}`,
-    '',
-  );
+        ? `${text}${quasi}${stringifyValue(values[i])}`
+        : `${text}${quasi}`;
+    assertStringLength(next.length, registry.limits);
+    return next;
+  }, '');

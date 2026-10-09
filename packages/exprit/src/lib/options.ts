@@ -1,3 +1,5 @@
+import type { Limits } from '@exprit/core';
+
 /**
  * The two syntaxes exprit understands. `legacy` is expr-eval's syntax
  * (`and`, `or`, `^` for power); `modern` is the expression grammar of
@@ -85,6 +87,11 @@ export interface ParserOptions {
   readonly allowMemberAccess?: boolean;
   /** Legacy dialect only: switch individual operators off. */
   readonly operators?: OperatorOptions;
+  /**
+   * Resource limits, on by default with generous values. Set a field to
+   * `Infinity` to disable it. See `Limits` in the core API.
+   */
+  readonly limits?: Partial<Limits>;
 }
 
 /** expr-eval groups several operator symbols under one option name. */

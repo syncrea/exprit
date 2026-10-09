@@ -104,8 +104,9 @@ export const parse = (
     env.dialect === 'modern'
       ? parseModern(source, {
           allowMemberAccess: env.allowMemberAccess,
-          isOperatorEnabled: (operator) =>
-            isModernEnabled(env, operator),
+          isOperatorEnabled: (operator) => isModernEnabled(env, operator),
+          maxSourceLength: env.limits.maxSourceLength,
+          maxDepth: env.limits.maxDepth,
         })
       : parseLegacy(source, {
           unaryOps: env.unaryOps,
@@ -114,6 +115,8 @@ export const parse = (
           consts: env.consts,
           isOperatorEnabled: (operator) => isEnabled(env, operator),
           allowMemberAccess: env.allowMemberAccess,
+          maxSourceLength: env.limits.maxSourceLength,
+          maxDepth: env.limits.maxDepth,
         }),
     env,
   );
