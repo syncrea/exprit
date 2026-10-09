@@ -4,6 +4,8 @@
  * expressions pass whatever values the caller supplied.
  */
 
+import { stringifyValue } from '@exprit/core';
+
 const toNumber = (value: unknown): number => Number(value);
 const asNumber = (value: unknown): number => value as number;
 
@@ -23,7 +25,7 @@ export const pow = (a: unknown, b: unknown): number =>
 export const concat = (a: unknown, b: unknown): unknown =>
   Array.isArray(a) && Array.isArray(b)
     ? [...a, ...b]
-    : `${String(a)}${String(b)}`;
+    : `${stringifyValue(a)}${stringifyValue(b)}`;
 
 export const equal = (a: unknown, b: unknown): boolean => a === b;
 export const notEqual = (a: unknown, b: unknown): boolean => a !== b;

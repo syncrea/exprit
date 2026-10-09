@@ -6,7 +6,7 @@ import {
 } from '@exprit/core';
 import { DEFAULT_SAFE_METHODS } from '@exprit/registry';
 
-import { compile, evaluate, parse } from './api';
+import { compile, evaluate, parse, print, simplify } from './api';
 import { CompatParser as Parser } from './compat-parser';
 import { createEnvironment } from './environment';
 
@@ -323,5 +323,33 @@ describe('parser depth and length limits (F3)', () => {
 
   it('accepts ordinary nesting within the limit', () => {
     expect(evaluate(parse('((((1 + 2))))'))).toBe(3);
+  });
+});
+
+// F5: coercing a host function to a string used to reveal its full source.
+describe('does not disclose host function source (F5)', () => {
+  const secretFn = function hostFn(x: number): number {
+    const secret = 'sk-live-TOPSECRET';
+    return x + secret.length;
+  };
+  const modern = createEnvironment({ dialect: 'modern' });
+
+  it.each<[string, Record<string, unknown>]>([
+    ['String(f)', { f: secretFn }],
+    ['`${f}`', { f: secretFn }],
+    ['f + ""', { f: secretFn }],
+  ])('masks the function in %s', (source, vars) => {
+    expect(evaluate(parse(source, modern), vars)).toBe('[Function]');
+    expect(compile(parse(source, modern))(vars)).toBe('[Function]');
+  });
+
+  it('masks a function inlined by simplify and printed', () => {
+    const printed = print(simplify(parse('x', modern), { x: secretFn }));
+    expect(printed).not.toContain('TOPSECRET');
+    expect(printed).toContain('[Function]');
+  });
+
+  it('masks a function concatenated in the legacy dialect', () => {
+    expect(evaluate(parse('f || "!"'), { f: secretFn })).toBe('[Function]!');
   });
 });

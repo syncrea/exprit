@@ -5,6 +5,7 @@ export * from './lib/evaluate';
 export * from './lib/limits';
 export * from './lib/member-access';
 export * from './lib/registry';
+export { stringifyValue } from './lib/runtime';
 export * from './lib/token';
 export * from './lib/transform';
 export * from './lib/walk';

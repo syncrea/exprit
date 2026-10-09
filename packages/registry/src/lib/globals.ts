@@ -1,3 +1,5 @@
+import { stringifyValue } from '@exprit/core';
+
 const pick = <T extends object>(
   source: T,
   keys: readonly (keyof T)[],
@@ -44,7 +46,7 @@ export const MODERN_GLOBALS: Readonly<Record<string, unknown>> = Object.freeze({
       'POSITIVE_INFINITY',
     ]),
   }),
-  String: callableNamespace((value) => String(value), {}),
+  String: callableNamespace((value) => stringifyValue(value), {}),
   Boolean: callableNamespace((value) => Boolean(value), {}),
   Array: Object.freeze({ isArray: Array.isArray }),
   Object: pick(Object, ['keys', 'values', 'entries', 'fromEntries']),

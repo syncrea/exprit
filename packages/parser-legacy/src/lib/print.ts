@@ -1,11 +1,15 @@
-import type { ElementNode, ExpressionNode } from '@exprit/core';
+import { stringifyValue, type ElementNode, type ExpressionNode } from '@exprit/core';
 
-const escapeValue = (value: unknown): string =>
-  typeof value === 'string'
+const escapeValue = (value: unknown): string => {
+  if (typeof value === 'function') {
+    return stringifyValue(value);
+  }
+  return typeof value === 'string'
     ? JSON.stringify(value)
         .replace(/\u2028/g, '\\u2028')
         .replace(/\u2029/g, '\\u2029')
     : String(value);
+};
 
 const printLiteral = (value: unknown): string => {
   if (typeof value === 'number' && value < 0) {

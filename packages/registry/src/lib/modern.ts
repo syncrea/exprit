@@ -1,6 +1,7 @@
 import {
   assertStringLength,
   resolveLimits,
+  stringifyValue,
   type ExpressionFunction,
   type IdentifierResolver,
   type Limits,
@@ -81,7 +82,11 @@ const createModernResolver =
 const guardedPlus = (limits: Limits): ExpressionFunction =>
   ((a: unknown, b: unknown): unknown => {
     if (typeof a === 'string' || typeof b === 'string') {
-      assertStringLength(String(a).length + String(b).length, limits);
+      // String concatenation: mask functions (F5) and bound the length (F1).
+      const left = stringifyValue(a);
+      const right = stringifyValue(b);
+      assertStringLength(left.length + right.length, limits);
+      return left + right;
     }
     return (a as number) + (b as number);
   }) as ExpressionFunction;
