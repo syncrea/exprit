@@ -29,7 +29,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
-      - run: pnpm nx run-many -t lint typecheck test build conformance
+      # The docs site (Astro, Node >= 22.12) is checked and built by docs.yml.
+      - run: pnpm nx run-many -t lint typecheck test build conformance --exclude=docs
       # The published bundle must pass the expr-eval suite too, not only the sources.
       - run: pnpm nx run exprit:conformance
         env:
