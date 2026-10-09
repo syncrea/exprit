@@ -1,3 +1,21 @@
+# 1.0.0 (2026-10-09)
+
+### 📖 Documentation
+
+- document the resource limits and modern-dialect hardening options ([f82d729](https://github.com/syncrea/exprit/commit/f82d729))
+- add a security policy, contributing guide and issue templates ([c88eb19](https://github.com/syncrea/exprit/commit/c88eb19))
+- correct the resource-limit comparison with expr-eval ([2b827c0](https://github.com/syncrea/exprit/commit/2b827c0))
+- add a migration guide from expr-eval ([8c3b4c5](https://github.com/syncrea/exprit/commit/8c3b4c5))
+
+### 🤖 CI
+
+- release from GitHub Actions with approval and npm trusted publishing ([b96fc7f](https://github.com/syncrea/exprit/commit/b96fc7f))
+- list documentation and CI changes in the changelog ([9a0fc98](https://github.com/syncrea/exprit/commit/9a0fc98))
+
+### ❤️ Thank You
+
+- Gion Kunz @chartist-js
+
 ## 0.7.2 (2026-10-09)
 
 ### 🩹 Fixes

@@ -1,6 +1,6 @@
 {
   "name": "@syncrea/exprit",
-  "version": "0.7.2",
+  "version": "1.0.0",
   "description": "Safe expression parser and evaluator for TypeScript. Drop-in replacement for expr-eval (passes its test suite) without eval or new Function, plus a dialect for standard JavaScript expressions.",
   "keywords": [
     "expr-eval",
