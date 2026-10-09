@@ -1,13 +1,15 @@
 {
   "name": "@syncrea/exprit-cli",
   "version": "0.7.2",
-  "description": "Command-line interface for exprit: evaluate expressions, pipe them through stdin, or explore them in a REPL.",
+  "description": "Command-line interface for exprit: evaluate safe expressions from the terminal, pipe them through stdin, or explore them in a REPL.",
   "keywords": [
+    "exprit",
+    "expr-eval",
     "expression",
+    "expression-evaluator",
     "calculator",
     "cli",
-    "repl",
-    "exprit"
+    "repl"
   ],
   "homepage": "https://exprit.syncrea.ch/getting-started/#command-line",
   "repository": {
