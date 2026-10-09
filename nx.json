@@ -67,12 +67,13 @@
     "changelog": {
       "workspaceChangelog": {
         "file": "CHANGELOG.md",
-        "createRelease": false
+        "createRelease": "github"
       },
       "projectChangelogs": false
     },
     "git": {
-      "commitMessage": "chore(release): publish {version}"
+      "commitMessage": "chore(release): publish {version}",
+      "push": true
     }
   }
 }
