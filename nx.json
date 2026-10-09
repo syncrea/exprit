@@ -74,6 +74,22 @@
     "git": {
       "commitMessage": "chore(release): publish {version}",
       "push": true
+    },
+    "conventionalCommits": {
+      "types": {
+        "docs": {
+          "semverBump": "none",
+          "changelog": {
+            "title": "\ud83d\udcd6 Documentation"
+          }
+        },
+        "ci": {
+          "semverBump": "none",
+          "changelog": {
+            "title": "\ud83e\udd16 CI"
+          }
+        }
+      }
     }
   }
 }
