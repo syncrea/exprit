@@ -21,6 +21,17 @@ export default defineConfig({
   },
   devToolbar: { enabled: false },
   vite: {
+    // Pre-bundle the client-side dependencies when the dev server starts.
+    // Discovered lazily, they make Vite re-optimize mid-session and the
+    // already-open page fails with "504 (Outdated Optimize Dep)".
+    optimizeDeps: {
+      include: [
+        '@codemirror/commands',
+        '@codemirror/state',
+        '@codemirror/view',
+        '@syncrea/exprit',
+      ],
+    },
     build: {
       // Keep fonts as cacheable files instead of base64 inside the CSS.
       assetsInlineLimit: 0,
