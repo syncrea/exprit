@@ -143,9 +143,10 @@ const guardAmplifyingMethod = (
           );
       case 'flatMap':
         return (...args) => {
+          // Drop the thisArg (args[1]) so the callback's receiver cannot be
+          // chosen by the expression, matching the array-callback rule.
           const mapped = receiver.map(
             args[0] as (v: unknown, i: number, a: unknown[]) => unknown,
-            args[1],
           );
           return safeFlat(mapped, 1, limits);
         };

@@ -132,9 +132,14 @@ describe('sandboxing', () => {
         return this?.owner ?? 'no receiver';
       },
     };
-    // Array-callback thisArg is still dropped.
+    // Array-callback thisArg is still dropped, for map and flatMap.
     expect(
       modern.evaluate('[0].map(account.describe, { owner: "attacker" })', {
+        account,
+      }),
+    ).toEqual(['no receiver']);
+    expect(
+      modern.evaluate('[0].flatMap(account.describe, { owner: "attacker" })', {
         account,
       }),
     ).toEqual(['no receiver']);
