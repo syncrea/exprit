@@ -37,6 +37,8 @@ jobs:
       - run: pnpm nx run exprit:conformance
         env:
           CONFORMANCE_TARGET: dist
+      # Typecheck the packed tarball as consumers install it, in every module setup.
+      - run: node tools/scripts/check-package-types.mjs
 
   runtime-node-20:
     # Builds on Node 22, then runs the built packages on Node 20, which the
