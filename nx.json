@@ -50,6 +50,9 @@
     "conformance": {
       "cache": true,
       "inputs": ["default", "^production"]
+    },
+    "nx-release-publish": {
+      "dependsOn": ["build"]
     }
   },
   "release": {
@@ -59,8 +62,7 @@
       "pattern": "v{version}"
     },
     "version": {
-      "conventionalCommits": true,
-      "preVersionCommand": "pnpm nx run-many -t build -p exprit cli"
+      "conventionalCommits": true
     },
     "changelog": {
       "workspaceChangelog": {

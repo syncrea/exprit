@@ -23,8 +23,7 @@ libraries are private and bundled, so they are never published.
 2. Dry run, which changes nothing:
    `pnpm nx release --dry-run` (add `--first-release` the first time; there is no
    tag yet). Version bumps come from conventional commits (`feat:` is minor,
-   `fix:` is patch, `!`/`BREAKING CHANGE` is major). The `preVersionCommand`
-   builds both packages.
+   `fix:` is patch, `!`/`BREAKING CHANGE` is major). Publishing depends on `build`, so the packages are rebuilt after the version bump.
 3. Show the user the planned version, the changelog and the files.
    **Stop and ask for confirmation.** Publishing cannot be undone.
 4. On confirmation: `pnpm nx release` (with `--first-release` if needed).
