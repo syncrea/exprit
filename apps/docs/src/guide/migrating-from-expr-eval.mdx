@@ -1,0 +1,107 @@
+import TryIt from '../components/TryIt.astro';
+
+Replace `expr-eval` with exprit by changing one import. Your stored expressions keep working: exprit passes expr-eval's own test suite, and the few deliberate differences are security fixes or bug fixes, listed below.
+
+## Why migrate
+
+expr-eval's last release, 2.0.2, dates from September 2019, and it has two published code-execution vulnerabilities:
+
+| CVE                                                               | Weakness                      | Impact                                                                                                   |
+| ----------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [CVE-2025-12735](https://nvd.nist.gov/vuln/detail/CVE-2025-12735) | CWE-94, code injection        | A crafted context object, or member access on it, passed to `evaluate()` can run arbitrary code.         |
+| [CVE-2025-13204](https://nvd.nist.gov/vuln/detail/CVE-2025-13204) | CWE-1321, prototype pollution | An attacker who can submit expressions can use JavaScript's prototype inheritance to run arbitrary code. |
+
+exprit is a rewrite, not a patch: it interprets a whitelisted syntax tree and never generates code, blocks prototype access everywhere, and limits how much memory an expression can claim. The [security section](/#security) maps each defence to CWE and the OWASP Top 10, with links to the tests.
+
+## Step 1: change the import
+
+```sh
+npm uninstall expr-eval
+npm install @syncrea/exprit
+```
+
+```diff
+- import { Parser } from 'expr-eval';
++ import { Parser } from '@syncrea/exprit';
+```
+
+Every way expr-eval was imported works:
+
+```ts
+import { Parser, Expression } from '@syncrea/exprit'; // named imports
+import exprEval from '@syncrea/exprit'; // default export: exprEval.Parser
+const { Parser } = require('@syncrea/exprit'); // CommonJS
+```
+
+`Parser` behaves exactly like expr-eval's: the same `parse` and `evaluate`, static `Parser.evaluate`, mutable `parser.functions`, `unaryOps` and `consts` tables, the `operators` and `allowMemberAccess` options, assignments that write into your values object, and `toString()` output that matches expr-eval byte for byte.
+
+<TryIt id="drop-in" source="2 ^ x + fac(3)" scope={{ x: 3 }} />
+
+### Coming from expr-eval-fork
+
+The same import change applies. exprit is built against expr-eval 2.0.2's API and test suite; if you use an addition that only exists in expr-eval-fork, check it against the [API reference](/api/) before switching.
+
+## Step 2: check the differences
+
+Run your existing tests. If something differs, it is most likely one of these, all deliberate:
+
+| expr-eval 2.0.2                                                                 | exprit                                                                                                                      |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Inherited names such as `toString` resolve as variables or constants.           | Only own properties of your values object are variables.                                                                    |
+| `a.b` reads any property, including inherited ones such as `x.constructor`.     | Own properties, string `length` and indices, and non-mutating methods only.                                                 |
+| Prototype access is blocked by a regex on variable names only.                  | `__proto__`, `prototype`, `constructor`, `caller`, `callee`, `arguments` are blocked as names, members and keys.            |
+| `toJSFunction` compiles JavaScript with `new Function`, with JavaScript's `+`.  | It returns a closure over the syntax tree; `+` stays numeric, as in `evaluate`.                                             |
+| No limits: deep nesting ends in a stack overflow, and source size is unbounded. | [Limits](/getting-started/#resource-limits) on size, depth, source length and steps, on by default, throw catchable errors. |
+| Functions print their source in strings and `toString()`.                       | They print as `[Function]`.                                                                                                 |
+| `a.b = 1` silently corrupts the evaluation.                                     | It is rejected: `expected variable for assignment`.                                                                         |
+| `[1 2]` is an array; `f(x).y` is a parse error.                                 | Arrays need commas; `f(x).y` and `f(x)[0]` work.                                                                            |
+
+Error messages keep the `parse error [line:column]:` prefix, so code that matches on it keeps working; the text after it is clearer, for example `Unexpected end of expression`. The [complete list](https://github.com/syncrea/exprit/blob/main/docs/differences-from-expr-eval.md) covers every detail, including typings: `evaluate` returns `any`, as in expr-eval, so existing TypeScript keeps compiling.
+
+## Step 3 (optional): move to the functional API
+
+`Parser` is a thin compatibility layer, kept under the name `CompatParser` and marked deprecated so your editor points you onward. The functional API underneath works on frozen values and never mutates your variables. Move over one call at a time:
+
+| expr-eval / `Parser`                  | Functional API                                  |
+| ------------------------------------- | ----------------------------------------------- |
+| `new Parser(options)`                 | `createEnvironment(options)`                    |
+| `parser.functions.f = fn`             | `extend(env, { functions: { f: fn } })`         |
+| `parser.parse(s)`                     | `parse(s, env)`                                 |
+| `expr.evaluate(values)`               | `evaluate(expr, values)` or `evaluateWithState` |
+| `expr.simplify(v)`, `expr.toString()` | `simplify(expr, v)`, `print(expr)`              |
+| `expr.toJSFunction('x,y')`            | `toFunction(expr, ['x', 'y'])`                  |
+| `expr.variables()`                    | `variables(expr)`                               |
+
+```ts
+import { createEnvironment, evaluate, parse } from '@syncrea/exprit';
+
+const env = createEnvironment({ functions: { double: (n: number) => n * 2 } });
+evaluate(parse('double(x) + 1', env), { x: 3 }); // 7
+```
+
+An existing `Parser` expression bridges over with `expr.toParsedExpression()`, so both styles can live side by side during the move.
+
+## Step 4 (optional): adopt the modern dialect
+
+The legacy dialect is expr-eval's syntax and stays supported. For new expressions, `createEnvironment({ dialect: 'modern' })` accepts standard JavaScript expressions instead, which your users and your editor already know:
+
+| Legacy (expr-eval)   | Modern (JavaScript)           |
+| -------------------- | ----------------------------- |
+| `a and b or not c`   | `a && b \|\| !c`              |
+| `a == b`, `a != b`   | `a === b`, `a !== b`          |
+| `2 ^ 10`             | `2 ** 10`                     |
+| `"a" \|\| "b"`       | `"a" + "b"` or `` `a${b}` ``  |
+| `x in [1, 2]`        | `[1, 2].includes(x)`          |
+| `5!`                 | `fac(5)`                      |
+| `sin x`, `sqrt(2)`   | `Math.sin(x)`, `Math.sqrt(2)` |
+| `map(f, xs)`         | `xs.map(x => x * 2)`          |
+| `f(x) = x * 2; f(3)` | `(x => x * 2)(3)`             |
+
+<TryIt
+  id="modern"
+  source="items.filter(i => i.price > 10).length"
+  dialect="modern"
+  scope={{ items: [{ price: 4 }, { price: 12 }, { price: 30 }] }}
+/>
+
+The dialect is a property of the environment, so you can migrate rule by rule: keep stored legacy expressions on a legacy environment, and write new ones for a modern one. The [dialect reference](/getting-started/#pick-a-dialect) has the full comparison, and the [playground](/playground/) runs both side by side.

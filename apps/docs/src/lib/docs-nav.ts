@@ -38,6 +38,7 @@ export const cleanHeading = (text: string): string =>
 
 export const REFERENCE_LINKS: readonly PageLink[] = [
   { href: '/getting-started/', label: 'Getting started' },
+  { href: '/migrating-from-expr-eval/', label: 'Migrating from expr-eval' },
   { href: '/api/', label: 'Functional API' },
   { href: '/api/core/', label: 'Core (advanced)' },
   { href: '/playground/', label: 'Playground' },

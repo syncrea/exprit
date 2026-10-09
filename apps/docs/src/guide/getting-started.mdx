@@ -33,8 +33,8 @@ evaluate(total, { price: 10, qty: 1 }); // 12
 <Callout title="Coming from expr-eval?">
   <p>
     Change the import and your existing expressions keep working in the legacy
-    dialect. The [migration section](#migrating-from-expr-eval) lists the few
-    intentional differences.
+    dialect. The <a href="/migrating-from-expr-eval/">migration guide</a> lists
+    the few intentional differences.
   </p>
 </Callout>
 
@@ -279,37 +279,14 @@ Reading from stdin evaluates one expression per line. In the legacy dialect, ass
 
 ## Migrating from expr-eval
 
-Change the import and everything keeps working:
+Change the import and your expressions keep working:
 
 ```diff
 - import { Parser } from 'expr-eval';
 + import { Parser } from '@syncrea/exprit';
 ```
 
-`Parser` is a deprecated alias of `CompatParser`, a class-based compatibility layer over the functional API. It keeps expr-eval's behaviour exactly, including mutable `parser.functions` tables and assignments that write into your values object. `require('@syncrea/exprit').Parser` and the default export work too. exprit runs expr-eval's own test suite against the legacy dialect in CI.
-
-Then move to the functional API at your own pace:
-
-| expr-eval / `CompatParser`            | Functional API                                     |
-| ------------------------------------- | -------------------------------------------------- |
-| `new Parser(options)`                 | `createEnvironment(options)`                       |
-| `parser.functions.f = fn`             | `extend(env, { functions: { f: fn } })`            |
-| `parser.parse(s)`                     | `parse(s, env)`                                    |
-| `expr.evaluate(values)`               | `evaluate(expr, values)` or `evaluateWithState`    |
-| `expr.simplify(v)`, `expr.toString()` | `simplify(expr, v)`, `print(expr)`                 |
-| `expr.toJSFunction('x,y')`            | `toFunction(expr, ['x', 'y'])`                     |
-| `compatExpr.toParsedExpression()`     | bridges a `CompatExpression` to the functional API |
-
-### Deliberate differences
-
-Almost every difference closes a security hole or fixes a bug in expr-eval 2.0.2:
-
-- **Own properties only.** Variables, members and constants are looked up as own properties, so `toString` or `x.constructor` no longer reach `Object.prototype`.
-- **Blocked names everywhere.** expr-eval blocked prototype access with a regex on variable names. exprit blocks the exact names listed above as names, members and keys; a name such as `myconstructor` is allowed.
-- **No code generation.** `toJSFunction` returns a closure over the simplified AST instead of compiling JavaScript with `new Function`. It now uses the same semantics as `evaluate`, so `+` is numeric there too.
-- **Bug fixes.** Member assignment (`a.b = 1`) is rejected instead of corrupting the evaluation stack; array literals need commas; `f(x).y` and `f(x)[0]` are accepted; string literals handle `'a\\'` correctly.
-- **Clearer errors.** Messages keep the `parse error [line:column]:` prefix, but the text after it is clearer, for example `Unexpected end of expression`.
-- **Typings.** `evaluate` on the compatibility classes returns `EvaluationResult` (an alias of `any`), so code written against expr-eval's signatures keeps compiling.
+`Parser` is a deprecated alias of `CompatParser`, which behaves exactly like expr-eval's class, and exprit passes expr-eval's own test suite in CI. The [migration guide](/migrating-from-expr-eval/) covers the two CVEs, the deliberate differences, expr-eval-fork, and moving to the functional API and the modern dialect step by step.
 
 ## Next steps
 

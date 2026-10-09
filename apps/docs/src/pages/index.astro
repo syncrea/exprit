@@ -74,6 +74,7 @@ const cli = `$ exprit -d modern -v 'xs=[1,2,3]' "xs.map(x => x * x)"
               <div class="diff-del"><span class="diff-sign">−</span><span class="tok-kw">import</span> {'{'} Parser {'}'} <span class="tok-kw">from</span> <span class="tok-str">'expr-eval'</span></div>
               <div class="diff-ins"><span class="diff-sign">+</span><span class="tok-kw">import</span> {'{'} Parser {'}'} <span class="tok-kw">from</span> <span class="tok-str">'@syncrea/exprit'</span></div>
             </div>
+            <a class="feature-link" href="/migrating-from-expr-eval/">Migrating from expr-eval →</a>
           </article>
 
           <article class="feature">
@@ -278,6 +279,12 @@ const cli = `$ exprit -d modern -v 'xs=[1,2,3]' "xs.map(x => x * x)"
     flex-direction: column;
     gap: 14px;
     min-width: 0;
+  }
+
+  .feature-link {
+    align-self: flex-start;
+    font-weight: 500;
+    font-size: 15px;
   }
 
   .feature-num {

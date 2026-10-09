@@ -117,7 +117,7 @@ default export work too. Then move to the functional API at your own pace:
 
 The few deliberate differences from expr-eval, all of them security fixes or
 bug fixes, are listed under
-[Deliberate differences](https://exprit.syncrea.ch/getting-started/#deliberate-differences).
+[Migrating from expr-eval](https://exprit.syncrea.ch/migrating-from-expr-eval/#step-2-check-the-differences).
 
 ## Security
 

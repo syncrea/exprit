@@ -7,6 +7,7 @@ import { expect, test, type Page } from '@playwright/test';
 const ROUTES = [
   { path: '/', heading: /^Expressions,\s*evaluated\.$/ },
   { path: '/getting-started/', heading: 'Getting started' },
+  { path: '/migrating-from-expr-eval/', heading: 'Migrating from expr-eval' },
   { path: '/api/', heading: '@syncrea/exprit' },
   { path: '/api/core/', heading: '@syncrea/exprit/core' },
   { path: '/playground/', heading: 'Playground' },
@@ -386,4 +387,29 @@ test.describe('resource limits in the docs', () => {
     await n.fill('3');
     await expect(page.locator('[data-result]')).toHaveText('"ababab"');
   });
+});
+
+test('the migration guide explains the switch and runs its examples', async ({
+  page,
+}) => {
+  await page.goto('/migrating-from-expr-eval/');
+  for (const cve of ['CVE-2025-12735', 'CVE-2025-13204']) {
+    await expect(page.getByRole('link', { name: cve })).toHaveAttribute(
+      'href',
+      `https://nvd.nist.gov/vuln/detail/${cve}`,
+    );
+  }
+  const tries = page.locator('exprit-live.try');
+  // The legacy drop-in example and the modern equivalent both evaluate.
+  await expect(tries.nth(0).locator('[data-result]')).toHaveText('14');
+  await expect(tries.nth(1).locator('[data-result]')).toHaveText('2');
+
+  // It is linked from the landing page and the guide.
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Migrating from expr-eval →' }).click();
+  await expect(page).toHaveURL(/\/migrating-from-expr-eval\/$/);
+  await page.goto('/getting-started/');
+  await expect(
+    page.locator('.prose a[href="/migrating-from-expr-eval/"]').first(),
+  ).toBeVisible();
 });

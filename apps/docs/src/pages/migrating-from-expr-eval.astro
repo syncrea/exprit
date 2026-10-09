@@ -1,0 +1,55 @@
+---
+import Guide, { getHeadings } from '../guide/migrating-from-expr-eval.mdx';
+import DocsLayout from '../layouts/DocsLayout.astro';
+import { REFERENCE_LINKS, type SidebarGroup, type TocItem } from '../lib/docs-nav';
+
+const ROUTE = '/migrating-from-expr-eval/';
+const headings = getHeadings();
+const sections = headings.filter((heading) => heading.depth === 2);
+
+const sidebar: readonly SidebarGroup[] = [
+  {
+    title: 'Migrating',
+    items: [
+      { href: ROUTE, label: 'From expr-eval', current: true },
+      ...sections.map((section) => ({ href: `#${section.slug}`, label: section.text, nested: true })),
+    ],
+  },
+  {
+    title: 'Reference',
+    items: REFERENCE_LINKS.filter((link) => link.href !== ROUTE).map((link) => ({
+      href: link.href,
+      label: link.label,
+    })),
+  },
+];
+
+const toc: readonly TocItem[] = headings
+  .filter((heading) => heading.depth <= 3)
+  .map(({ depth, slug, text }) => ({ depth, slug, text }));
+---
+
+<DocsLayout
+  title="Migrating from expr-eval"
+  description="Replace expr-eval (CVE-2025-12735, CVE-2025-13204) or expr-eval-fork with exprit: change one import, check the deliberate differences, then move to the functional API and the modern dialect at your own pace."
+  breadcrumb={['Getting started', 'Migrating from expr-eval']}
+  sidebarLabel="Documentation"
+  sidebar={sidebar}
+  toc={toc}
+  prev={{ href: '/getting-started/', label: 'Getting started' }}
+  next={{ href: '/api/', label: 'API reference' }}
+>
+  <Guide />
+</DocsLayout>
+
+<style>
+  /* Keep identifiers such as CVE-2025-12735 on one line. */
+  :global(.prose td:first-child a) {
+    white-space: nowrap;
+  }
+
+  :global(.prose > p:first-child) {
+    font-size: 19px;
+    line-height: 1.6;
+  }
+</style>
