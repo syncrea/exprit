@@ -131,11 +131,28 @@ An expression can only do what the AST and the registry allow:
 - **Spread is copied key by key.** Object spread goes through the same
   blocked-name check as literal keys, so an own `__proto__` key from
   `JSON.parse` cannot set a prototype.
-- **Frozen globals.** The modern dialect sees frozen copies (`Math`,
-  `Number`, `JSON`, ...), never the real built-ins.
+- **Frozen global namespaces.** The modern dialect sees frozen container
+  objects (`Math`, `Number`, `JSON`, ...), never the real global objects. The
+  functions inside them are the genuine built-ins (for example the real
+  `Math.max`), but because the containers are frozen and modern expressions
+  cannot assign, an expression can neither replace nor mutate them, and a
+  function's own members stay opaque (`Math.max.constructor` is rejected).
+  `JSON` is reimplemented so its methods take only safe arguments.
 - **No mutation of inputs.** Modern expressions cannot assign. Legacy `x = 1`
   writes only into the variables object the caller passed in, as expr-eval
   does.
+- **No chosen receiver.** A function read from an object or array the evaluator
+  built itself (a literal or a spread) is called with `this` undefined, so an
+  expression cannot invoke a host method against an object it crafted. Objects
+  the host passes in keep their natural receiver.
+- **Resource limits, on by default.** `EnvironmentOptions.limits` (defaults in
+  `core/src/lib/limits.ts`) bound the size of produced strings, arrays and
+  objects, the parser's accepted depth and source length, and an evaluation
+  step budget. Size-amplifying methods and operators throw a catchable
+  `ExpressionLimitError` before they allocate; the parser rejects over-deep or
+  over-long input with an `ExpressionSyntaxError`, which bounds every recursive
+  tree walk downstream. These cannot cap host process memory or wall time; run
+  untrusted evaluation out-of-process as well (see the package README).
 
 ## Package layout and build
 

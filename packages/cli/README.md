@@ -32,6 +32,12 @@ assignments persist from line to line (`x = 2` then `x * 21`). The REPL adds
 
 Exit codes: `0` success, `1` an expression failed, `2` invalid arguments.
 
+When output goes to a terminal, control characters in string results are
+escaped as `\xHH`, so processing untrusted piped input cannot inject terminal
+escape sequences. Piped output is left byte-for-byte unchanged. For the full
+sandbox guarantees and the recommendation to run untrusted input out-of-process,
+see the [`@syncrea/exprit` Security section](../exprit/README.md#security).
+
 ## License
 
 MIT

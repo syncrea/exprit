@@ -76,6 +76,13 @@ pow atan2 if gamma roundTo map fold filter indexOf join sum`; the constants
 names (`add`, `comparison`, `logical`, `assignment`, `fndef`, `array`, `sin`,
 ...). `allowMemberAccess: false` rejects `a.b`.
 
+`EnvironmentOptions.limits` applies to both dialects: it bounds the size of
+strings, arrays and objects an expression may build, the parser's accepted
+nesting depth and source length, and an evaluation step budget. The defaults
+are generous; set a field to `Infinity` to disable it. Exceeding a size or
+step limit throws `ExpressionLimitError`; exceeding a parser limit throws
+`ExpressionSyntaxError`.
+
 ## Modern reference
 
 JavaScript's operator precedence and semantics: `?:`, `??`, `||`, `&&`,

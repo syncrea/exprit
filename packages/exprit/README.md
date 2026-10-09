@@ -11,7 +11,8 @@ and it adds a second dialect that reads like JavaScript.
 - **Drop-in:** expr-eval's class API is still there. exprit passes
   expr-eval's own test suite.
 - **Safe:** no `eval`, no `new Function`, no prototype access. Expressions
-  only see what you hand them.
+  only see what you hand them, and on-by-default resource limits blunt
+  denial-of-service. See [Security](#security).
 - **Two dialects, one core:** `legacy` (expr-eval syntax) and `modern` (the
   expression grammar of JavaScript) parse to the same typed AST.
 - **Fully typed, zero dependencies,** ESM and CommonJS.
@@ -117,6 +118,54 @@ default export work too. Then move to the functional API at your own pace:
 The few deliberate differences from expr-eval, all of them security fixes or
 bug fixes, are listed under
 [Deliberate differences](https://exprit.syncrea.ch/getting-started/#deliberate-differences).
+
+## Security
+
+exprit interprets a whitelisted AST; it never generates or runs code.
+
+**What the sandbox guarantees:**
+
+- No code generation. No `eval`, no `new Function`, no `with`; even
+  `toJSFunction`/`toFunction` return a closure over the AST, not source.
+- No prototype access. `__proto__`, `prototype`, `constructor`, `caller`,
+  `callee`, `arguments` and the `__define*`/`__lookup*` accessors are rejected
+  as identifiers, members, keys and parameters. `Object.prototype` is never
+  polluted, including through object spread.
+- Own data only. Member access returns own properties, string
+  `length`/indices and the non-mutating methods in `DEFAULT_SAFE_METHODS`.
+  Functions are opaque except the registry's own namespaces.
+- Your inputs are never mutated. Methods are non-mutating; the functional API
+  copies variables before evaluating.
+- A function read from an object the expression itself built is called with no
+  receiver, so an expression cannot pick the `this` of a host method.
+- **Resource limits are on by default.** `maxStringLength`, `maxArrayLength`,
+  `maxObjectKeys`, `maxDepth`, `maxSourceLength` and a `maxSteps` budget turn
+  the sharpest denial-of-service vectors (an unbounded `repeat`/`padStart`,
+  deep nesting) into a catchable `ExpressionLimitError` or
+  `ExpressionSyntaxError`. Tune them per environment; `Infinity` disables one.
+
+  ```ts
+  createEnvironment({ dialect: 'modern', limits: { maxStringLength: 100_000 } });
+  ```
+
+**What it cannot do — the host's responsibility:**
+
+- It cannot cap the memory or wall-clock time of the host process the way an
+  operating system can. **Run untrusted evaluation in a worker thread or a
+  separate process with a hard memory cap (`--max-old-space-size`) and a kill
+  timer.** The in-library limits reduce, but do not replace, that need.
+- What you hand in is reachable and callable. Any function you pass as a
+  variable or register can be called with arbitrary arguments, and coercing it
+  to a string yields `[Function]` rather than its source — but do not pass live
+  privileged objects (`process`, `req`, DB handles), objects whose methods trust
+  `this`, or objects with side-effecting getters (reading a member runs the
+  getter).
+- Results and `print()`/`toString()` output are attacker-influenced. Treat them
+  as untrusted when writing to a terminal (the CLI escapes control characters),
+  embedding in HTML, or re-parsing.
+- The static `Parser.parse`/`Parser.evaluate` helpers share one process-wide,
+  mutable parser. For multi-tenant use, build a per-tenant `new CompatParser()`
+  or `createEnvironment`.
 
 ## Low-level building blocks
 

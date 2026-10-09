@@ -228,12 +228,24 @@ export class CompatParser {
     return isOperatorEnabled(this.options.operators, operator);
   }
 
-  /** Parses with a shared default parser (legacy dialect). */
+  /**
+   * Parses with a shared default parser (legacy dialect).
+   *
+   * The static helpers reuse one lazily created, process-wide `CompatParser`
+   * whose `functions`/`consts`/`unaryOps`/... tables are mutable and shared by
+   * every caller. An expression cannot reach it, but a multi-tenant host that
+   * mutates those tables (or relies on the static API across tenants) shares
+   * that state. Construct a per-tenant `new CompatParser()` or a functional
+   * `createEnvironment` for isolation.
+   */
   static parse(expression: string): CompatExpression {
     return sharedParser().parse(expression);
   }
 
-  /** Parses and evaluates with a shared default parser (legacy dialect). */
+  /**
+   * Parses and evaluates with a shared default parser (legacy dialect). See
+   * {@link CompatParser.parse} for the shared-state caveat.
+   */
   static evaluate(expression: string, values?: Values): EvaluationResult {
     return sharedParser().evaluate(expression, values);
   }

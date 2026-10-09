@@ -19,6 +19,19 @@ the old behaviour.
 | `toJSFunction` generates JavaScript source and compiles it with `new Function`.                                      | `toJSFunction` returns a closure over the simplified AST. No code is generated.                                                                                                         | Results are the same; legacy semantics apply (see below). |
 | Constants and operator words are looked up with `in`, so `toString` counts as a constant.                            | Own properties only.                                                                                                                                                                    | Nothing.                                                  |
 
+## Resource limits and sandbox hardening
+
+These defend against denial-of-service and information disclosure that
+expr-eval does not. The defaults are generous enough that every expr-eval
+conformance test and any realistic expression is unaffected.
+
+| expr-eval 2.0.2                                                                                       | exprit                                                                                                                                                            | If you relied on it                                                      |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| No limits: `'x'.repeat(3e8)` or deep nesting can crash the process with an uncatchable out-of-memory. | On-by-default `limits` (`maxStringLength`/`maxArrayLength` 10M, `maxObjectKeys` 1M, `maxDepth` 1000, `maxSourceLength` 100000, `maxSteps` 1e8). See `EnvironmentOptions.limits`. | Raise the relevant limit, or set it to `Infinity` to disable it.         |
+| The modern dialect ignored `allowMemberAccess` and `operators`.                                       | Both apply to the modern dialect by meaning (member access, and operators mapped onto expr-eval's option names).                                                   | Nothing; the switches now take effect. Modern-only operators stay on.    |
+| A method copied onto a literal (`({ m: host.m }).m()`) runs with the literal as `this`.               | A function read from an object/array the expression built runs with `this` undefined. Host objects keep their receiver.                                            | Pass data, or a pre-bound/free function, instead of relying on the receiver. |
+| Coercing a function to a string (`String(f)`, `` `${f}` ``) reveals its source.                       | Functions render as `[Function]` in string coercion and in `print`/`toString`.                                                                                     | Nothing; closure values were never exposed, only source text.            |
+
 ## Bug fixes and small deltas
 
 - **`toJSFunction` semantics.** expr-eval's generated code used JavaScript
