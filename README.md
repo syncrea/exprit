@@ -32,6 +32,7 @@ string → tokenizer → tokens → parser-legacy | parser-modern → AST → ev
 | `packages/registry`      | Operators, functions, constants, safe globals                              |
 | `packages/exprit`        | Published: functional API, `CompatParser` drop-in, `/core` building blocks |
 | `packages/cli`           | Published: the `exprit` command                                            |
+| `apps/docs`              | The documentation website, [exprit.syncrea.ch](https://exprit.syncrea.ch)  |
 
 ## Development
 
@@ -41,6 +42,22 @@ pnpm check         # lint, typecheck, test, build, expr-eval conformance
 pnpm conformance   # expr-eval's own test suite against the legacy dialect
 pnpm nx test core  # a single project
 ```
+
+## Documentation website
+
+[exprit.syncrea.ch](https://exprit.syncrea.ch) is built from `apps/docs`: an
+Astro site with a guide, an API reference generated from the TSDoc comments,
+and a playground that runs the real engine in the browser. It needs Node.js
+22.12 or newer.
+
+```sh
+pnpm nx dev docs     # local dev server
+pnpm nx build docs   # static site in apps/docs/dist (generates the API reference first)
+pnpm nx e2e docs     # build, then Playwright smoke tests
+```
+
+It deploys to GitHub Pages from `main` (`.github/workflows/docs.yml`). See
+[apps/docs/README.md](apps/docs/README.md).
 
 ## Documentation
 

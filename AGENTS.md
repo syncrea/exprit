@@ -54,6 +54,7 @@ point for any agent working in the repo. Read it fully before changing code.
 | `packages/registry`      | `@exprit/registry` (internal)  | Operators, functions, constants, safe globals, per-dialect identifier resolution                       |
 | `packages/exprit`        | `@syncrea/exprit` (published)  | Functional API (`api.ts`, `environment.ts`), `CompatParser` compat class, `/core` subpath, conformance |
 | `packages/cli`           | `@syncrea/exprit-cli` (publ.)  | `exprit` command: one-shot, stdin, REPL                                                                |
+| `apps/docs`              | `@exprit/docs` (private app)   | Astro docs site: landing, guide (MDX), TypeDoc API reference, CodeMirror playground islands            |
 | `docs/`                  |                                | Architecture, dialects, differences from expr-eval, TypeScript guidelines                              |
 | `tools/scripts/`         |                                | Repo scripts (vendoring the conformance suite)                                                         |
 
@@ -76,6 +77,10 @@ Always run tasks through Nx with pnpm (`pnpm nx ...`), never the tools directly.
 | Try the CLI                            | `node packages/cli/dist/main.mjs -d modern "1 + 1"`           |
 | Format                                 | `pnpm format`                                                 |
 | Release (asks first)                   | `pnpm nx release --dry-run`                                   |
+| Docs site: dev server                  | `pnpm nx dev docs`                                            |
+| Docs site: build (API reference first) | `pnpm nx build docs`                                          |
+| Docs site: smoke tests (builds first)  | `pnpm nx e2e docs`                                            |
+| Docs site: regenerate the OG image     | `pnpm nx og-image docs`                                       |
 
 ## Definition of done
 
@@ -87,6 +92,23 @@ Always run tasks through Nx with pnpm (`pnpm nx ...`), never the tools directly.
       linearize), and both printers.
 - [ ] `evaluate` and `compile` agree. `core/src/lib/evaluate.spec.ts` runs both.
 - [ ] User-visible changes are reflected in `docs/` and in the package README.
+- [ ] Public API changes come with TSDoc: the API reference on the docs site
+      is generated from it. Check `pnpm nx build docs`.
+
+## Docs site (`apps/docs`)
+
+- Astro, static output, Node.js 22.12 or newer. `ci.yml` excludes it from the
+  Node 20 matrix; `docs.yml` lints, typechecks, builds, smoke-tests and
+  deploys it to GitHub Pages (`exprit.syncrea.ch`).
+- It imports the library only as `@syncrea/exprit` (and `/core`), like a user
+  would (`layer:docs` may only depend on `layer:public`). It uses the built
+  `dist`, so its targets depend on `^build`.
+- The API reference is generated into `apps/docs/.generated/` (not committed)
+  by `docs:api-docs` from `packages/exprit/src/index.ts` and `src/core.ts`.
+  `@group` tags in the TSDoc decide its sections. Never edit the output.
+- Islands are vanilla TypeScript custom elements (`src/scripts/`). Styling is
+  plain CSS with the tokens in `src/styles/tokens.css`: no Tailwind, no UI
+  framework.
 
 ## Common tasks
 
