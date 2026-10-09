@@ -25,6 +25,9 @@
         ],
         "outputs": [
           "{projectRoot}/.generated/api"
+        ],
+        "dependsOn": [
+          "^typecheck"
         ]
       },
       "bundle-size": {
