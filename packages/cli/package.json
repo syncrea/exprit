@@ -1,0 +1,63 @@
+{
+  "name": "@syncrea/exprit-cli",
+  "version": "0.0.0",
+  "description": "Command-line interface for exprit: evaluate expressions, pipe them through stdin, or explore them in a REPL.",
+  "keywords": [
+    "expression",
+    "calculator",
+    "cli",
+    "repl",
+    "exprit"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "exprit": "./dist/main.mjs"
+  },
+  "exports": {
+    ".": {
+      "@syncrea/source": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "nx": {
+    "name": "cli",
+    "tags": [
+      "scope:public",
+      "layer:cli"
+    ],
+    "targets": {
+      "build": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "tsdown",
+          "cwd": "{projectRoot}"
+        },
+        "inputs": [
+          "production",
+          "^production"
+        ],
+        "outputs": [
+          "{projectRoot}/dist"
+        ],
+        "dependsOn": [
+          "^build"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "@syncrea/exprit": "workspace:*"
+  }
+}

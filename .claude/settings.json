@@ -1,0 +1,59 @@
+{
+  "extraKnownMarketplaces": {
+    "nx-claude-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "nrwl/nx-ai-agents-config"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "nx@nx-claude-plugins": true
+  },
+  "sandbox": {
+    "network": {
+      "allowedDomains": ["www.google-analytics.com"]
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(pnpm nx *)",
+      "Bash(pnpm check)",
+      "Bash(pnpm test)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm build)",
+      "Bash(pnpm conformance)",
+      "Bash(pnpm format)",
+      "Bash(pnpm format:check)",
+      "Bash(pnpm exec vitest *)",
+      "Bash(pnpm exec prettier *)",
+      "Bash(node packages/cli/dist/main.mjs *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)"
+    ],
+    "ask": [
+      "Edit(/docs/typescript.md)",
+      "Bash(pnpm nx release*)",
+      "Bash(pnpm release*)",
+      "Bash(npm publish*)"
+    ],
+    "deny": ["Edit(/packages/exprit/conformance/expr-eval/**)"]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r f; cd \"$CLAUDE_PROJECT_DIR\" && pnpm exec prettier --write --ignore-unknown --log-level warn \"$f\"; } 2>/dev/null || true",
+            "timeout": 30,
+            "statusMessage": "Formatting with Prettier"
+          }
+        ]
+      }
+    ]
+  }
+}

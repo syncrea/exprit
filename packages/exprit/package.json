@@ -1,0 +1,96 @@
+{
+  "name": "@syncrea/exprit",
+  "version": "0.0.0",
+  "description": "TypeScript-first expression parser and evaluator: a drop-in replacement for expr-eval, plus a JavaScript-flavoured dialect.",
+  "keywords": [
+    "expression",
+    "parser",
+    "evaluator",
+    "expr-eval",
+    "math",
+    "formula",
+    "sandbox"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "@syncrea/source": "./src/index.ts",
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./core": {
+      "@syncrea/source": "./src/core.ts",
+      "import": {
+        "types": "./dist/core.d.ts",
+        "default": "./dist/core.js"
+      },
+      "require": {
+        "types": "./dist/core.d.cts",
+        "default": "./dist/core.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "nx": {
+    "name": "exprit",
+    "tags": [
+      "scope:public",
+      "layer:public"
+    ],
+    "targets": {
+      "build": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "tsdown",
+          "cwd": "{projectRoot}"
+        },
+        "inputs": [
+          "production",
+          "^production"
+        ],
+        "outputs": [
+          "{projectRoot}/dist"
+        ],
+        "dependsOn": [
+          "^build"
+        ]
+      },
+      "conformance": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "vitest run --config vitest.conformance.config.mts",
+          "cwd": "{projectRoot}"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@exprit/core": "workspace:*",
+    "@exprit/tokenizer": "workspace:*",
+    "@exprit/parser-legacy": "workspace:*",
+    "@exprit/parser-modern": "workspace:*",
+    "@exprit/registry": "workspace:*"
+  }
+}

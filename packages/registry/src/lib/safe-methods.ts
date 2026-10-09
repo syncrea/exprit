@@ -1,0 +1,73 @@
+import type { SafeMethods } from '@exprit/core';
+
+import { GLOBAL_NAMESPACES } from './globals';
+
+/**
+ * Prototype methods expressions may call. Only non-mutating methods are listed,
+ * so an expression can never change the data it was given. Frozen, so no
+ * consumer can widen the whitelist for everyone else.
+ */
+export const DEFAULT_SAFE_METHODS: SafeMethods = Object.freeze({
+  array: Object.freeze([
+    'at',
+    'concat',
+    'every',
+    'filter',
+    'find',
+    'findIndex',
+    'findLast',
+    'findLastIndex',
+    'flat',
+    'flatMap',
+    'includes',
+    'indexOf',
+    'join',
+    'lastIndexOf',
+    'map',
+    'reduce',
+    'reduceRight',
+    'slice',
+    'some',
+    'toReversed',
+    'toSorted',
+    'toSpliced',
+    'with',
+  ]),
+  string: Object.freeze([
+    'at',
+    'charAt',
+    'charCodeAt',
+    'codePointAt',
+    'concat',
+    'endsWith',
+    'includes',
+    'indexOf',
+    'lastIndexOf',
+    'localeCompare',
+    'normalize',
+    'padEnd',
+    'padStart',
+    'repeat',
+    'replace',
+    'replaceAll',
+    'slice',
+    'split',
+    'startsWith',
+    'substring',
+    'toLowerCase',
+    'toUpperCase',
+    'toLocaleLowerCase',
+    'toLocaleUpperCase',
+    'trim',
+    'trimEnd',
+    'trimStart',
+  ]),
+  number: Object.freeze([
+    'toExponential',
+    'toFixed',
+    'toLocaleString',
+    'toPrecision',
+    'toString',
+  ]),
+  namespaces: GLOBAL_NAMESPACES,
+});

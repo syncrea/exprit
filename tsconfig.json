@@ -1,0 +1,29 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/tokenizer"
+    },
+    {
+      "path": "./packages/parser-legacy"
+    },
+    {
+      "path": "./packages/parser-modern"
+    },
+    {
+      "path": "./packages/registry"
+    },
+    {
+      "path": "./packages/exprit"
+    },
+    {
+      "path": "./packages/cli"
+    }
+  ],
+  "compilerOptions": {}
+}
