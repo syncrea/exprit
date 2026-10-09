@@ -5,7 +5,7 @@
 - **Scope:** `@syncrea/exprit` and `@syncrea/exprit-cli`, the whole pipeline
   (tokenizer, both parsers, core evaluator/compiler/transforms/member-access,
   registry tables, functional API, `CompatParser`, CLI, packaging).
-- **Commit reviewed:** `56e0b80ef90391fb8bbb3351d28fa13bcadf384e` (branch tip).
+- **Commit reviewed:** `4086fef1736d825903e4104a1ca08755c60a6fb0` (the initial commit).
 - **Date:** 2026-10-09.
 - **Method:** source review of `packages/*/src` plus runnable proofs of concept
   against the built bundle (`packages/exprit/dist/index.js` and `index.cjs`),
@@ -31,16 +31,16 @@ prototype.
 
 | ID  | Title                                                                              | Severity | Likelihood | Component                     | Status                                        |
 | --- | ---------------------------------------------------------------------------------- | -------- | ---------- | ----------------------------- | --------------------------------------------- |
-| F1  | Uncatchable process crash / memory exhaustion via unbounded string & array methods | High     | High       | registry safe-methods, core   | fixed (`74cc087`)                             |
-| F2  | `allowMemberAccess` and `operators` options silently ignored in modern dialect     | Medium   | Medium     | exprit api / parser-modern    | fixed (`8aac09d`)                             |
-| F3  | Stack-overflow DoS from deep AST (nesting / long operator chains)                  | Medium   | Medium     | core + api freeze + printers  | fixed (`74cc087`)                             |
-| F4  | Host method receiver substitution (`this` chosen by expression)                    | Medium   | Low        | core evaluate / member-access | fixed (`4ce70df`)                             |
-| F5  | Host function source disclosure via `String(f)` / templates / `print(simplify)`    | Low      | Medium     | runtime / printers            | fixed (`c9a8313`)                             |
-| F6  | Side-effecting host getters fire on member read                                    | Low      | Low        | core member-access            | documented as host responsibility (`c0ffbce`) |
-| F7  | CLI emits raw terminal/ANSI escape sequences from results                          | Low      | Medium     | cli run.ts                    | fixed (`bf6697c`)                             |
-| F8  | Shared singleton behind `Parser.parse` / `Parser.evaluate` static API              | Info     | Low        | compat-parser                 | documented (`c0ffbce`)                        |
-| F9  | Published sourcemaps embed full source; dead `@syncrea/source` condition           | Info     | n/a        | packaging                     | fixed (`c0ffbce`, see note)                   |
-| F10 | `MODERN_GLOBALS` reference the real built-in functions, not copies                 | Info     | n/a        | registry globals / docs       | fixed (docs, `c0ffbce`)                       |
+| F1  | Uncatchable process crash / memory exhaustion via unbounded string & array methods | High     | High       | registry safe-methods, core   | fixed (`7d18e41`)                             |
+| F2  | `allowMemberAccess` and `operators` options silently ignored in modern dialect     | Medium   | Medium     | exprit api / parser-modern    | fixed (`004a55a`)                             |
+| F3  | Stack-overflow DoS from deep AST (nesting / long operator chains)                  | Medium   | Medium     | core + api freeze + printers  | fixed (`7d18e41`)                             |
+| F4  | Host method receiver substitution (`this` chosen by expression)                    | Medium   | Low        | core evaluate / member-access | fixed (`9b8debb`)                             |
+| F5  | Host function source disclosure via `String(f)` / templates / `print(simplify)`    | Low      | Medium     | runtime / printers            | fixed (`79990e7`)                             |
+| F6  | Side-effecting host getters fire on member read                                    | Low      | Low        | core member-access            | documented as host responsibility (`fb5c9b8`) |
+| F7  | CLI emits raw terminal/ANSI escape sequences from results                          | Low      | Medium     | cli run.ts                    | fixed (`e29fa7c`)                             |
+| F8  | Shared singleton behind `Parser.parse` / `Parser.evaluate` static API              | Info     | Low        | compat-parser                 | documented (`fb5c9b8`)                        |
+| F9  | Published sourcemaps embed full source; dead `@syncrea/source` condition           | Info     | n/a        | packaging                     | fixed (`fb5c9b8`, see note)                   |
+| F10 | `MODERN_GLOBALS` reference the real built-in functions, not copies                 | Info     | n/a        | registry globals / docs       | fixed (docs, `fb5c9b8`)                       |
 
 ## 2. Threat model and trust boundaries
 
@@ -513,7 +513,7 @@ for F7), covering both `evaluate` and `compile` where relevant. The legacy
 dialect remains a drop-in: `pnpm conformance` still passes 478 tests (1 skipped),
 against the sources and the built bundle.
 
-- **F1 (`74cc087`).** Added an on-by-default `limits` surface
+- **F1 (`7d18e41`).** Added an on-by-default `limits` surface
   (`EnvironmentOptions.limits`, `ParserOptions.limits`, `Registry.limits`;
   defaults in `packages/core/src/lib/limits.ts`). Size-amplifying string and
   array methods (`repeat`, `padStart`/`padEnd`, `concat`, `split`, `replace`,
@@ -525,40 +525,40 @@ against the sources and the built bundle.
   1,000,000, `maxSteps` 100,000,000. `Infinity` disables a limit. An optional
   step budget is enforced in both `evaluate` and `compile`; measured hot-path
   overhead is within noise (~2–3%).
-- **F2 (`8aac09d`).** `parseModern` now takes a grammar and honours
+- **F2 (`004a55a`).** `parseModern` now takes a grammar and honours
   `allowMemberAccess` (rejecting `.`, `?.`, indexing and method calls) and
   `operators` (expr-eval's option names mapped onto the modern operators).
   Disabled constructs are rejected at parse time with an `ExpressionSyntaxError`.
-- **F3 (`74cc087`).** The parsers reject source longer than `maxSourceLength`
+- **F3 (`7d18e41`).** The parsers reject source longer than `maxSourceLength`
   and ASTs deeper than `maxDepth` (both an in-parse recursion guard and a
   post-parse iterative depth check) with an `ExpressionSyntaxError`. This bounds
   every downstream recursive walk (evaluate, compile, printers, transforms,
   `freezeNode`) for any tree the parser accepts.
-- **F4 (`4ce70df`).** The evaluator marks objects and arrays it builds itself
+- **F4 (`9b8debb`).** The evaluator marks objects and arrays it builds itself
   and calls functions read from them with `this` undefined; host-provided
   objects keep their natural receiver.
-- **F5 (`c9a8313`).** A shared `stringifyValue` renders functions as
+- **F5 (`79990e7`).** A shared `stringifyValue` renders functions as
   `[Function]` in template concatenation, the modern `String` global, modern
   `+`, legacy `||` and both printers.
-- **F6 (documented, `c0ffbce`).** Left as a host responsibility: reading an own
+- **F6 (documented, `fb5c9b8`).** Left as a host responsibility: reading an own
   accessor property runs the getter by design. The README's Security section
   tells hosts not to pass objects with side-effecting getters. A descriptor-based
   read that returns `undefined` for accessors would break legitimate computed
   properties, so it was not adopted.
-- **F7 (`bf6697c`).** The CLI escapes C0/C1 control characters (except newline
+- **F7 (`e29fa7c`).** The CLI escapes C0/C1 control characters (except newline
   and tab) as `\xHH` when results go to a TTY; piped output is unchanged.
-- **F8 (documented, `c0ffbce`).** TSDoc on the static `Parser.parse`/`evaluate`
+- **F8 (documented, `fb5c9b8`).** TSDoc on the static `Parser.parse`/`evaluate`
   and the README note that they share one process-wide mutable parser and that
   multi-tenant hosts should use a per-tenant instance. No code change: an
   expression cannot reach the singleton.
-- **F9 (`c0ffbce`).** Sourcemaps are dropped from both published tarballs via a
+- **F9 (`fb5c9b8`).** Sourcemaps are dropped from both published tarballs via a
   negated `files` pattern (`"!dist/**/*.map"`), verified with `npm pack
 --dry-run`. The `@syncrea/source` export condition is intentionally retained:
   `tsconfig.base.json` sets `customConditions: ["@syncrea/source"]`, so the
   workspace (docs, CLI typecheck) resolves `@syncrea/exprit` to its TypeScript
   sources through it. It is harmless in the tarball because no external consumer
   requests that condition and `src` is not shipped.
-- **F10 (docs, `c0ffbce`).** `docs/architecture.md` now states that the modern
+- **F10 (docs, `fb5c9b8`).** `docs/architecture.md` now states that the modern
   global namespaces are frozen container copies whose functions are the genuine
   built-ins, which an expression can neither replace nor mutate. No code change.
 
