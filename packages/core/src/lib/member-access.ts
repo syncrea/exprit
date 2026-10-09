@@ -27,6 +27,59 @@ const BLOCKED_NAMES: ReadonlySet<string> = new Set([
 
 export const isBlockedName = (name: string): boolean => BLOCKED_NAMES.has(name);
 
+/**
+ * Objects and arrays the evaluator constructed itself: array/object literals,
+ * spreads, the containers the sandbox globals build (`Object.fromEntries`,
+ * `JSON.parse`, ...) and the new arrays its safe methods return. A function
+ * read from one of these is called with `this` undefined, so an expression
+ * cannot pick the receiver of a host method by copying it onto a container it
+ * controls (F4). Host-provided objects are never in this set, so their methods
+ * keep their natural receiver.
+ */
+const EVALUATOR_OWNED = new WeakSet<object>();
+
+/** Marks a freshly built value as evaluator-owned and returns it. */
+export const markOwned = <T extends object>(value: T): T => {
+  EVALUATOR_OWNED.add(value);
+  return value;
+};
+
+/** Marks a value as evaluator-owned only when it is an object or array. */
+export const markOwnedIfContainer = (value: unknown): unknown => {
+  if (value !== null && typeof value === 'object') {
+    EVALUATOR_OWNED.add(value);
+  }
+  return value;
+};
+
+/**
+ * The receiver to use when calling a method read from `object`: undefined when
+ * the evaluator built `object` itself, the object otherwise.
+ */
+export const receiverFor = (object: unknown): unknown =>
+  typeof object === 'object' && object !== null && EVALUATOR_OWNED.has(object)
+    ? undefined
+    : object;
+
+/**
+ * Safe methods that always return a freshly constructed array (never a host
+ * element). Their results are marked evaluator-owned so a function stored in
+ * one cannot be called with a chosen receiver.
+ */
+const NEW_ARRAY_METHODS: ReadonlySet<string> = new Set([
+  'concat',
+  'filter',
+  'flat',
+  'flatMap',
+  'map',
+  'slice',
+  'toReversed',
+  'toSorted',
+  'toSpliced',
+  'with',
+  'split',
+]);
+
 export const assertAllowedName = (name: string): void => {
   if (isBlockedName(name)) {
     throw new ExpressionSecurityError(`access to "${name}" is not allowed`);
@@ -203,17 +256,25 @@ const bindMethod = (
   name: string,
   limits: Limits,
 ): ((...args: unknown[]) => unknown) => {
-  const guarded = guardAmplifyingMethod(receiver, prototype, name, limits);
-  if (guarded !== undefined) {
-    return guarded;
-  }
-  const method = Reflect.get(prototype, name) as (
-    ...args: unknown[]
-  ) => unknown;
-  const dropsThisArg =
-    prototype === Array.prototype && THIS_ARG_METHODS.has(name);
-  return (...args: unknown[]): unknown =>
-    method.apply(receiver, dropsThisArg ? args.slice(0, 1) : args);
+  const base =
+    guardAmplifyingMethod(receiver, prototype, name, limits) ??
+    ((): ((...args: unknown[]) => unknown) => {
+      const method = Reflect.get(prototype, name) as (
+        ...args: unknown[]
+      ) => unknown;
+      const dropsThisArg =
+        prototype === Array.prototype && THIS_ARG_METHODS.has(name);
+      return (...args: unknown[]): unknown =>
+        method.apply(receiver, dropsThisArg ? args.slice(0, 1) : args);
+    })();
+  // A freshly constructed array must be evaluator-owned, so a host function
+  // stored in it cannot later be called with a chosen receiver (F4).
+  return NEW_ARRAY_METHODS.has(name)
+    ? (...args: unknown[]): unknown => {
+        const result = base(...args);
+        return Array.isArray(result) ? markOwned(result) : result;
+      }
+    : base;
 };
 
 const isAllowedMethod = (methods: readonly string[], key: string): boolean =>

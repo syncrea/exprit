@@ -8,6 +8,8 @@ import {
 import { assertAllowedName } from './member-access';
 import type { Registry, Scope } from './registry';
 
+export { markOwned, receiverFor } from './member-access';
+
 /**
  * Runtime semantics shared by the tree-walking evaluator and the closure
  * compiler, so both always agree on what an operation means.
@@ -158,30 +160,6 @@ export const spreadProperties = (
     }
   }
 };
-
-/**
- * Objects and arrays the evaluator built itself (literals and spreads). A
- * function read from one of these is called with `this` undefined, so an
- * expression cannot pick the receiver of a host method by copying it onto an
- * object literal it controls (F4). Host-provided objects are never in this set,
- * so their methods keep their natural receiver.
- */
-const EVALUATOR_OWNED = new WeakSet<object>();
-
-/** Marks a freshly built value as evaluator-owned and returns it. */
-export const markOwned = <T extends object>(value: T): T => {
-  EVALUATOR_OWNED.add(value);
-  return value;
-};
-
-/**
- * The receiver to use when calling a method read from `object`: undefined when
- * the evaluator built `object` itself, the object otherwise.
- */
-export const receiverFor = (object: unknown): unknown =>
-  typeof object === 'object' && object !== null && EVALUATOR_OWNED.has(object)
-    ? undefined
-    : object;
 
 export const callValue = (
   callee: unknown,

@@ -152,6 +152,16 @@ describe('sandboxing', () => {
       expect(run('({ m: account.describe, owner: "x" }).m()')).toBe(
         'no receiver',
       );
+      // Objects and arrays the expression builds through the sandbox globals
+      // and safe methods are evaluator-owned too, so they cannot be used to
+      // rebind a host method's receiver either.
+      expect(
+        run(
+          'Object.fromEntries([["m", account.describe], ["owner", "x"]]).m()',
+        ),
+      ).toBe('no receiver');
+      expect(run('[account.describe].slice()[0]()')).toBe('no receiver');
+      expect(run('[account.describe].map(f => f)[0]()')).toBe('no receiver');
       // A host object passed as a variable keeps its natural receiver.
       expect(run('account.describe()')).toBe('host');
     }

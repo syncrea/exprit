@@ -1,4 +1,10 @@
-import { stringifyValue } from '@exprit/core';
+import { markOwnedIfContainer, stringifyValue } from '@exprit/core';
+
+/** Wraps a container-returning global so its result is evaluator-owned (F4). */
+const owning =
+  <A extends unknown[]>(fn: (...args: A) => unknown) =>
+  (...args: A): unknown =>
+    markOwnedIfContainer(fn(...args));
 
 const pick = <T extends object>(
   source: T,
@@ -49,9 +55,17 @@ export const MODERN_GLOBALS: Readonly<Record<string, unknown>> = Object.freeze({
   String: callableNamespace((value) => stringifyValue(value), {}),
   Boolean: callableNamespace((value) => Boolean(value), {}),
   Array: Object.freeze({ isArray: Array.isArray }),
-  Object: pick(Object, ['keys', 'values', 'entries', 'fromEntries']),
+  Object: Object.freeze({
+    keys: owning((value: object) => Object.keys(value)),
+    values: owning((value: object) => Object.values(value)),
+    entries: owning((value: object) => Object.entries(value)),
+    fromEntries: owning((entries: Iterable<readonly [PropertyKey, unknown]>) =>
+      Object.fromEntries(entries),
+    ),
+  }),
   JSON: Object.freeze({
-    parse: (text: unknown) => JSON.parse(String(text)) as unknown,
+    parse: (text: unknown) =>
+      markOwnedIfContainer(JSON.parse(String(text))) as unknown,
     stringify: (value: unknown, _replacer?: unknown, space?: unknown) =>
       JSON.stringify(value, null, space as number | string | undefined),
   }),
