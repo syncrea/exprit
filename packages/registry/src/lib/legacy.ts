@@ -163,7 +163,10 @@ export const createLegacyRegistry = (
 ): Registry => ({
   unaryOps: tables.unaryOps,
   binaryOps: Object.hasOwn(tables.binaryOps, '||')
-    ? { ...tables.binaryOps, '||': guardedConcat(tables.binaryOps['||'], limits) }
+    ? {
+        ...tables.binaryOps,
+        '||': guardedConcat(tables.binaryOps['||'], limits),
+      }
     : tables.binaryOps,
   functions: tables.functions,
   consts: tables.consts,

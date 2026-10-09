@@ -136,7 +136,11 @@ const guardAmplifyingMethod = (
         };
       case 'flat':
         return (...args) =>
-          safeFlat(receiver, args[0] === undefined ? 1 : toLength(args[0]), limits);
+          safeFlat(
+            receiver,
+            args[0] === undefined ? 1 : toLength(args[0]),
+            limits,
+          );
       case 'flatMap':
         return (...args) => {
           const mapped = receiver.map(

@@ -76,7 +76,9 @@ const evaluateLine = (
       session.variables,
     );
     const formatted = formatResult(value, session.isJson);
-    io.writeOut(`${io.isOutputTty ? escapeControlCharacters(formatted) : formatted}\n`);
+    io.writeOut(
+      `${io.isOutputTty ? escapeControlCharacters(formatted) : formatted}\n`,
+    );
     return { session: { ...session, variables }, isSuccess: true };
   } catch (error) {
     io.writeErr(`${errorMessage(error)}\n`);

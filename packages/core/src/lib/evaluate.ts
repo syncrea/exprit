@@ -39,7 +39,12 @@ const evaluateElements = (
         context.registry,
       );
     } else {
-      appendElement(result, evaluateNode(element, context), false, context.registry);
+      appendElement(
+        result,
+        evaluateNode(element, context),
+        false,
+        context.registry,
+      );
     }
   }
   return markOwned(result);
@@ -80,7 +85,12 @@ const evaluateCall = (node: CallNode, context: Context): unknown => {
       callee.type === 'Member'
         ? callee.property
         : (evaluateNode(callee.index, context) as PropertyKey);
-    fn = readMember(receiver, key, context.registry.methods, context.registry.limits);
+    fn = readMember(
+      receiver,
+      key,
+      context.registry.methods,
+      context.registry.limits,
+    );
   } else {
     fn = evaluateNode(callee, context);
     if (fn === SHORT_CIRCUIT) {
@@ -149,7 +159,12 @@ const evaluateNode = (node: ExpressionNode, context: Context): unknown => {
         node.type === 'Member'
           ? node.property
           : (evaluateNode(node.index, context) as PropertyKey);
-      return readMember(object, key, context.registry.methods, context.registry.limits);
+      return readMember(
+        object,
+        key,
+        context.registry.methods,
+        context.registry.limits,
+      );
     }
     case 'Call':
       return evaluateCall(node, context);

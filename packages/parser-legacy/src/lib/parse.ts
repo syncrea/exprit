@@ -130,10 +130,7 @@ export const parseLegacy = (
     grammar.maxSourceLength ?? DEFAULT_LIMITS.maxSourceLength;
   const maxDepth = grammar.maxDepth ?? DEFAULT_LIMITS.maxDepth;
   if (source.length > maxSourceLength) {
-    fail(
-      `expression is too long (${source.length} > ${maxSourceLength})`,
-      0,
-    );
+    fail(`expression is too long (${source.length} > ${maxSourceLength})`, 0);
   }
 
   const isOperatorWord = (word: string): boolean =>

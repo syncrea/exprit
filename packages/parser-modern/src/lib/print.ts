@@ -1,4 +1,8 @@
-import { stringifyValue, type ElementNode, type ExpressionNode } from '@exprit/core';
+import {
+  stringifyValue,
+  type ElementNode,
+  type ExpressionNode,
+} from '@exprit/core';
 
 const printLiteral = (value: unknown): string => {
   if (typeof value === 'function') {

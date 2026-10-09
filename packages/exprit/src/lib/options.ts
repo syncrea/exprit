@@ -152,7 +152,9 @@ const isEnabledVia = (
   operators: OperatorOptions | undefined,
   operator: string,
 ): boolean => {
-  const optionName = Object.hasOwn(names, operator) ? names[operator] : operator;
+  const optionName = Object.hasOwn(names, operator)
+    ? names[operator]
+    : operator;
   return (
     !operators ||
     !Object.hasOwn(operators, optionName) ||

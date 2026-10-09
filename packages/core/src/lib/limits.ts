@@ -63,7 +63,9 @@ export class ExpressionLimitError extends Error {
 
 /** Merges partial overrides onto the defaults, keeping unspecified limits. */
 export const resolveLimits = (overrides?: Partial<Limits>): Limits =>
-  overrides ? Object.freeze({ ...DEFAULT_LIMITS, ...overrides }) : DEFAULT_LIMITS;
+  overrides
+    ? Object.freeze({ ...DEFAULT_LIMITS, ...overrides })
+    : DEFAULT_LIMITS;
 
 /** Throws unless a produced string would stay within `maxStringLength`. */
 export const assertStringLength = (length: number, limits: Limits): void => {

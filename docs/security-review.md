@@ -29,18 +29,18 @@ prototype.
 
 ### Findings
 
-| ID  | Title                                                                              | Severity | Likelihood | Component                     | Status |
-| --- | ---------------------------------------------------------------------------------- | -------- | ---------- | ----------------------------- | ------ |
-| F1  | Uncatchable process crash / memory exhaustion via unbounded string & array methods | High     | High       | registry safe-methods, core   | open   |
-| F2  | `allowMemberAccess` and `operators` options silently ignored in modern dialect     | Medium   | Medium     | exprit api / parser-modern    | open   |
-| F3  | Stack-overflow DoS from deep AST (nesting / long operator chains)                  | Medium   | Medium     | core + api freeze + printers  | open   |
-| F4  | Host method receiver substitution (`this` chosen by expression)                    | Medium   | Low        | core evaluate / member-access | open   |
-| F5  | Host function source disclosure via `String(f)` / templates / `print(simplify)`    | Low      | Medium     | runtime / printers            | open   |
-| F6  | Side-effecting host getters fire on member read                                    | Low      | Low        | core member-access            | open   |
-| F7  | CLI emits raw terminal/ANSI escape sequences from results                          | Low      | Medium     | cli run.ts                    | open   |
-| F8  | Shared singleton behind `Parser.parse` / `Parser.evaluate` static API              | Info     | Low        | compat-parser                 | open   |
-| F9  | Published sourcemaps embed full source; dead `@syncrea/source` condition           | Info     | n/a        | packaging                     | open   |
-| F10 | `MODERN_GLOBALS` reference the real built-in functions, not copies                 | Info     | n/a        | registry globals / docs       | open   |
+| ID  | Title                                                                              | Severity | Likelihood | Component                     | Status                                        |
+| --- | ---------------------------------------------------------------------------------- | -------- | ---------- | ----------------------------- | --------------------------------------------- |
+| F1  | Uncatchable process crash / memory exhaustion via unbounded string & array methods | High     | High       | registry safe-methods, core   | fixed (`74cc087`)                             |
+| F2  | `allowMemberAccess` and `operators` options silently ignored in modern dialect     | Medium   | Medium     | exprit api / parser-modern    | fixed (`8aac09d`)                             |
+| F3  | Stack-overflow DoS from deep AST (nesting / long operator chains)                  | Medium   | Medium     | core + api freeze + printers  | fixed (`74cc087`)                             |
+| F4  | Host method receiver substitution (`this` chosen by expression)                    | Medium   | Low        | core evaluate / member-access | fixed (`4ce70df`)                             |
+| F5  | Host function source disclosure via `String(f)` / templates / `print(simplify)`    | Low      | Medium     | runtime / printers            | fixed (`c9a8313`)                             |
+| F6  | Side-effecting host getters fire on member read                                    | Low      | Low        | core member-access            | documented as host responsibility (`c0ffbce`) |
+| F7  | CLI emits raw terminal/ANSI escape sequences from results                          | Low      | Medium     | cli run.ts                    | fixed (`bf6697c`)                             |
+| F8  | Shared singleton behind `Parser.parse` / `Parser.evaluate` static API              | Info     | Low        | compat-parser                 | documented (`c0ffbce`)                        |
+| F9  | Published sourcemaps embed full source; dead `@syncrea/source` condition           | Info     | n/a        | packaging                     | fixed (`c0ffbce`, see note)                   |
+| F10 | `MODERN_GLOBALS` reference the real built-in functions, not copies                 | Info     | n/a        | registry globals / docs       | fixed (docs, `c0ffbce`)                       |
 
 ## 2. Threat model and trust boundaries
 
@@ -504,3 +504,60 @@ All of the following were run against `evaluate`, `compile`, and `CompatParser`
    characters in CLI TTY output.
 6. **F9** — packaging cleanup (drop sourcemaps from `files` if undesired; remove
    or back the dead `@syncrea/source` condition).
+
+## 7. Remediation (what was done)
+
+All findings were addressed on the security branch. Regression tests live in
+`packages/exprit/src/lib/security.spec.ts` (and `packages/cli/src/lib/run.spec.ts`
+for F7), covering both `evaluate` and `compile` where relevant. The legacy
+dialect remains a drop-in: `pnpm conformance` still passes 478 tests (1 skipped),
+against the sources and the built bundle.
+
+- **F1 (`74cc087`).** Added an on-by-default `limits` surface
+  (`EnvironmentOptions.limits`, `ParserOptions.limits`, `Registry.limits`;
+  defaults in `packages/core/src/lib/limits.ts`). Size-amplifying string and
+  array methods (`repeat`, `padStart`/`padEnd`, `concat`, `split`, `replace`,
+  `flat`, `flatMap`, `toSpliced`, `join`), string concatenation (modern `+`,
+  legacy `||`), template literals and array/object-literal growth throw a
+  catchable `ExpressionLimitError` before allocating. `flat`/`flatMap` are
+  reimplemented with a counter so a native call cannot allocate past the limit.
+  Defaults: `maxStringLength`/`maxArrayLength` 10,000,000, `maxObjectKeys`
+  1,000,000, `maxSteps` 100,000,000. `Infinity` disables a limit. An optional
+  step budget is enforced in both `evaluate` and `compile`; measured hot-path
+  overhead is within noise (~2–3%).
+- **F2 (`8aac09d`).** `parseModern` now takes a grammar and honours
+  `allowMemberAccess` (rejecting `.`, `?.`, indexing and method calls) and
+  `operators` (expr-eval's option names mapped onto the modern operators).
+  Disabled constructs are rejected at parse time with an `ExpressionSyntaxError`.
+- **F3 (`74cc087`).** The parsers reject source longer than `maxSourceLength`
+  and ASTs deeper than `maxDepth` (both an in-parse recursion guard and a
+  post-parse iterative depth check) with an `ExpressionSyntaxError`. This bounds
+  every downstream recursive walk (evaluate, compile, printers, transforms,
+  `freezeNode`) for any tree the parser accepts.
+- **F4 (`4ce70df`).** The evaluator marks objects and arrays it builds itself
+  and calls functions read from them with `this` undefined; host-provided
+  objects keep their natural receiver.
+- **F5 (`c9a8313`).** A shared `stringifyValue` renders functions as
+  `[Function]` in template concatenation, the modern `String` global, modern
+  `+`, legacy `||` and both printers.
+- **F6 (documented, `c0ffbce`).** Left as a host responsibility: reading an own
+  accessor property runs the getter by design. The README's Security section
+  tells hosts not to pass objects with side-effecting getters. A descriptor-based
+  read that returns `undefined` for accessors would break legitimate computed
+  properties, so it was not adopted.
+- **F7 (`bf6697c`).** The CLI escapes C0/C1 control characters (except newline
+  and tab) as `\xHH` when results go to a TTY; piped output is unchanged.
+- **F8 (documented, `c0ffbce`).** TSDoc on the static `Parser.parse`/`evaluate`
+  and the README note that they share one process-wide mutable parser and that
+  multi-tenant hosts should use a per-tenant instance. No code change: an
+  expression cannot reach the singleton.
+- **F9 (`c0ffbce`).** Sourcemaps are dropped from both published tarballs via a
+  negated `files` pattern (`"!dist/**/*.map"`), verified with `npm pack
+--dry-run`. The `@syncrea/source` export condition is intentionally retained:
+  `tsconfig.base.json` sets `customConditions: ["@syncrea/source"]`, so the
+  workspace (docs, CLI typecheck) resolves `@syncrea/exprit` to its TypeScript
+  sources through it. It is harmless in the tarball because no external consumer
+  requests that condition and `src` is not shipped.
+- **F10 (docs, `c0ffbce`).** `docs/architecture.md` now states that the modern
+  global namespaces are frozen container copies whose functions are the genuine
+  built-ins, which an expression can neither replace nor mutate. No code change.

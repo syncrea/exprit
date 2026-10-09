@@ -120,7 +120,8 @@ export const parseModern = (
   source: string,
   grammar: ModernGrammar = DEFAULT_GRAMMAR,
 ): ExpressionNode => {
-  const maxSourceLength = grammar.maxSourceLength ?? DEFAULT_LIMITS.maxSourceLength;
+  const maxSourceLength =
+    grammar.maxSourceLength ?? DEFAULT_LIMITS.maxSourceLength;
   const maxDepth = grammar.maxDepth ?? DEFAULT_LIMITS.maxDepth;
   if (source.length > maxSourceLength) {
     throw new ExpressionSyntaxError(

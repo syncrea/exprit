@@ -1,9 +1,6 @@
 import { createRequire } from 'node:module';
 
-import {
-  ExpressionLimitError,
-  ExpressionSyntaxError,
-} from '@exprit/core';
+import { ExpressionLimitError, ExpressionSyntaxError } from '@exprit/core';
 import { DEFAULT_SAFE_METHODS } from '@exprit/registry';
 
 import { compile, evaluate, parse, print, simplify } from './api';
@@ -181,9 +178,9 @@ describe('modern dialect honours hardening switches (F2)', () => {
   });
 
   it('still allows plain calls and array literals without member access', () => {
-    expect(evaluate(parse('f(2)', noMembers), { f: (n: number) => n + 1 })).toBe(
-      3,
-    );
+    expect(
+      evaluate(parse('f(2)', noMembers), { f: (n: number) => n + 1 }),
+    ).toBe(3);
     expect(evaluate(parse('[1, 2, 3]', noMembers))).toEqual([1, 2, 3]);
   });
 
@@ -309,16 +306,12 @@ describe('parser depth and length limits (F3)', () => {
   );
 
   it('rejects a long left-associative chain before it builds a deep tree', () => {
-    expect(() => parse('1' + '+1'.repeat(10000))).toThrow(
-      /nested too deeply/,
-    );
+    expect(() => parse('1' + '+1'.repeat(10000))).toThrow(/nested too deeply/);
   });
 
   it('rejects source longer than the limit', () => {
     const env = createEnvironment({ limits: { maxSourceLength: 100 } });
-    expect(() => parse('1 + '.repeat(100) + '1', env)).toThrow(
-      /too long/,
-    );
+    expect(() => parse('1 + '.repeat(100) + '1', env)).toThrow(/too long/);
   });
 
   it('accepts ordinary nesting within the limit', () => {

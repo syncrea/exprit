@@ -145,7 +145,10 @@ exprit interprets a whitelisted AST; it never generates or runs code.
   `ExpressionSyntaxError`. Tune them per environment; `Infinity` disables one.
 
   ```ts
-  createEnvironment({ dialect: 'modern', limits: { maxStringLength: 100_000 } });
+  createEnvironment({
+    dialect: 'modern',
+    limits: { maxStringLength: 100_000 },
+  });
   ```
 
 **What it cannot do — the host's responsibility:**
