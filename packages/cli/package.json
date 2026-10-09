@@ -1,6 +1,6 @@
 {
   "name": "@syncrea/exprit-cli",
-  "version": "0.0.0",
+  "version": "0.7.0",
   "description": "Command-line interface for exprit: evaluate expressions, pipe them through stdin, or explore them in a REPL.",
   "keywords": [
     "expression",
