@@ -94,6 +94,9 @@ Always run tasks through Nx with pnpm (`pnpm nx ...`), never the tools directly.
 - [ ] User-visible changes are reflected in `docs/` and in the package README.
 - [ ] Public API changes come with TSDoc: the API reference on the docs site
       is generated from it. Check `pnpm nx build docs`.
+- [ ] Commits use conventional commit messages with no AI attribution:
+      no `Co-Authored-By` or session-link trailers in commits or PR
+      descriptions.
 
 ## Docs site (`apps/docs`)
 
