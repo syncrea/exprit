@@ -135,10 +135,6 @@ const createLegacyResolver =
   };
 
 /**
- * Builds the registry for the legacy dialect over the given tables. The
- * tables are read live, so functions added after parsing are still found.
- */
-/**
  * expr-eval's `||` concatenation, guarded so neither the concatenated string
  * nor the concatenated array can exceed the limits. The check runs before the
  * result is allocated.
@@ -186,6 +182,10 @@ const withGuardedFunctions = (
       }
     : tables;
 
+/**
+ * Builds the registry for the legacy dialect over the given tables. The
+ * tables are read live, so functions added after parsing are still found.
+ */
 export const createLegacyRegistry = (
   rawTables: LegacyTables = createLegacyTables(),
   isOperatorEnabled: (operator: string) => boolean = () => true,

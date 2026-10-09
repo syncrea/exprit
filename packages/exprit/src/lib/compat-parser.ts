@@ -244,7 +244,7 @@ export class CompatParser {
 
   /**
    * Parses and evaluates with a shared default parser (legacy dialect). See
-   * {@link CompatParser.parse} for the shared-state caveat.
+   * the static `CompatParser.parse` above for the shared-state caveat.
    */
   static evaluate(expression: string, values?: Values): EvaluationResult {
     return sharedParser().evaluate(expression, values);
