@@ -1,3 +1,13 @@
+## 0.7.1 (2026-10-09)
+
+### 🩹 Fixes
+
+- **exprit:** repair the CommonJS type declarations and the core subpath for node10 ([5d1def0](https://github.com/syncrea/exprit/commit/5d1def0))
+
+### ❤️ Thank You
+
+- Gion Kunz @chartist-js
+
 ## 0.7.0 (2026-10-09)
 
 ### 🚀 Features

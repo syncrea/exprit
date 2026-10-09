@@ -1,6 +1,6 @@
 {
   "name": "@syncrea/exprit",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "TypeScript-first expression parser and evaluator: a drop-in replacement for expr-eval, plus a JavaScript-flavoured dialect.",
   "keywords": [
     "expression",
