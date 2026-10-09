@@ -98,6 +98,68 @@ export const evaluateSafely = (
 export type RunOutcome =
   ValueOutcome | RuntimeProblem | EmptyOutcome | SyntaxProblem;
 
+export interface Timing {
+  /** Mean wall-clock time of one `evaluate` call, in nanoseconds. */
+  readonly nanosecondsPerRun: number;
+  /** How many evaluations the mean is over. */
+  readonly runs: number;
+}
+
+/** A batch must run at least this long to dwarf the browser's coarse clock. */
+const MIN_BATCH_MS = 2;
+/** Total time the measurement may take, so typing never stalls. */
+export const BUDGET_MS = 10;
+
+/**
+ * Measures how long one evaluation takes. Browsers round `performance.now()`
+ * to 100 µs or more, far coarser than a single evaluation, so this times
+ * batches of doubling size until one lasts `MIN_BATCH_MS`, and reports that
+ * batch's mean. A slow expression gets one timed run instead of a loop.
+ *
+ * @returns The timing, or `undefined` if the expression throws
+ */
+export const measureEvaluation = (
+  expression: ParsedExpression,
+  variables: Variables,
+  now: () => number = () => performance.now(),
+): Timing | undefined => {
+  const timeBatch = (runs: number): number => {
+    const start = now();
+    for (let i = 0; i < runs; i++) {
+      evaluate(expression, variables);
+    }
+    return now() - start;
+  };
+  try {
+    const started = now();
+    let runs = 1;
+    let elapsed = timeBatch(runs);
+    while (
+      elapsed < MIN_BATCH_MS &&
+      now() - started + elapsed * 2 < BUDGET_MS
+    ) {
+      runs *= 2;
+      elapsed = timeBatch(runs);
+    }
+    return { nanosecondsPerRun: (elapsed / runs) * 1e6, runs };
+  } catch {
+    // The caller already shows the evaluation error; there is nothing to time.
+    return undefined;
+  }
+};
+
+const nanosecondFormat = new Intl.NumberFormat('en', {
+  maximumFractionDigits: 0,
+});
+
+/** `1,234 ns`, rounded to whole nanoseconds. */
+export const formatNanoseconds = (timing: Timing): string =>
+  `${nanosecondFormat.format(timing.nanosecondsPerRun)} ns`;
+
+/** `≈ 1,234 ns`: a measured mean, so marked as approximate. */
+export const formatTiming = (timing: Timing): string =>
+  `≈ ${formatNanoseconds(timing)}`;
+
 /** Parses and evaluates in one go; used by the small inline demos. */
 export const run = (
   source: string,

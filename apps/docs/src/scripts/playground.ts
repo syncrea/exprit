@@ -27,13 +27,18 @@ import {
 } from '@syncrea/exprit';
 
 import {
+  BUDGET_MS,
   evaluateSafely,
+  formatNanoseconds,
+  formatTiming,
   isDialect,
+  measureEvaluation,
   parseSource,
   viewOutcome,
   type ParseOutcome,
   type RunOutcome,
   type SyntaxProblem,
+  type Timing,
 } from '../lib/engine';
 import { flattenAst, highlight, type TokenClass } from '../lib/inspect';
 import {
@@ -652,6 +657,7 @@ class ExpritPlayground extends HTMLElement {
   #evaluate(): void {
     const parsed = this.#parsed;
     let outcome: RunOutcome;
+    let timing: Timing | undefined;
     if (!parsed || parsed.kind !== 'parsed') {
       outcome = parsed ?? { kind: 'empty', message: 'Type an expression' };
     } else {
@@ -676,14 +682,30 @@ class ExpritPlayground extends HTMLElement {
           problem ??= `${name}: ${result.error}`;
         }
       });
-      outcome = problem
-        ? { kind: 'runtime', message: `Fix the value of ${problem}` }
-        : evaluateSafely(parsed.expression, Object.fromEntries(entries));
+      if (problem) {
+        outcome = { kind: 'runtime', message: `Fix the value of ${problem}` };
+      } else {
+        const scope = Object.fromEntries(entries);
+        const start = performance.now();
+        outcome = evaluateSafely(parsed.expression, scope);
+        const firstRunMs = performance.now() - start;
+        if (outcome.kind === 'value') {
+          // A slow expression is not run again: its one run is the measurement.
+          timing =
+            firstRunMs >= BUDGET_MS
+              ? { nanosecondsPerRun: firstRunMs * 1e6, runs: 1 }
+              : measureEvaluation(parsed.expression, scope);
+        }
+      }
     }
-    this.#renderResult(outcome, parsed);
+    this.#renderResult(outcome, parsed, timing);
   }
 
-  #renderResult(outcome: RunOutcome, parsed: ParseOutcome | undefined): void {
+  #renderResult(
+    outcome: RunOutcome,
+    parsed: ParseOutcome | undefined,
+    timing?: Timing,
+  ): void {
     const view = viewOutcome(outcome);
     const result = this.querySelector<HTMLElement>('[data-result]');
     if (result) {
@@ -699,7 +721,11 @@ class ExpritPlayground extends HTMLElement {
       const tokens = countTokens(this.#source, this.#dialect);
       if (parsed?.kind === 'parsed') {
         const nodes = flattenAst(parsed.expression.ast).length;
-        meta.textContent = `${view.type} · ${tokens} tokens · ${nodes} nodes`;
+        const time = timing ? ` · ${formatTiming(timing)}` : '';
+        meta.textContent = `${view.type} · ${tokens} tokens · ${nodes} nodes${time}`;
+        meta.title = timing
+          ? `evaluate() took ${formatNanoseconds(timing)} on average over ${timing.runs.toLocaleString('en')} runs in this browser`
+          : '';
       } else if (parsed?.kind === 'syntax') {
         meta.textContent = `syntax error · ExpressionSyntaxError`;
       } else {

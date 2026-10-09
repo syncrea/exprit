@@ -98,7 +98,7 @@ test.describe('playground', () => {
     const result = page.locator('#pg-result');
     await expect(result).toHaveText('12.15');
     await expect(page.locator('#pg-result-meta')).toHaveText(
-      /^number · \d+ tokens · \d+ nodes$/,
+      /^number · \d+ tokens · \d+ nodes · ≈ [\d,]+ ns$/,
     );
 
     await typeExpression(page, 'price * qty + bonus');
@@ -265,4 +265,16 @@ test.describe('scroll spy', () => {
       page.locator('.docs-toc a[aria-current="location"]'),
     ).toHaveAttribute('href', last ?? '');
   });
+});
+
+test('the playground shows how long evaluate() took', async ({ page }) => {
+  await page.goto('/playground/');
+  await typeExpression(page, '2 * x + 1');
+  const meta = page.locator('[data-meta]');
+  await expect(meta).toHaveText(/ · ≈ [\d,]+ ns$/);
+  await expect(meta).toHaveAttribute('title', /on average over [\d,]+ runs/);
+
+  // Nothing to time when evaluation fails.
+  await typeExpression(page, 'nope(1)');
+  await expect(meta).not.toHaveText(/ns$/);
 });
