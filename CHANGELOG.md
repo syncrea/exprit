@@ -1,3 +1,13 @@
+## 0.7.2 (2026-10-09)
+
+### 🩹 Fixes
+
+- **cli:** report the installed version in --version ([1939cf5](https://github.com/syncrea/exprit/commit/1939cf5))
+
+### ❤️ Thank You
+
+- Gion Kunz @chartist-js
+
 ## 0.7.1 (2026-10-09)
 
 ### 🩹 Fixes
