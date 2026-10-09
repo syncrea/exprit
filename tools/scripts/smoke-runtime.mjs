@@ -45,6 +45,16 @@ const cli = execFileSync(
 ).trim();
 check('CLI', cli, '21');
 
+const cliPackage = require(`${root}packages/cli/package.json`);
+const reported = execFileSync(
+  process.execPath,
+  [`${root}packages/cli/dist/main.mjs`, '--version'],
+  {
+    encoding: 'utf8',
+  },
+).trim();
+check('CLI --version matches package.json', reported, cliPackage.version);
+
 console.log(
   `node ${process.version}: ${process.exitCode ? 'FAILED' : 'all good'}`,
 );
