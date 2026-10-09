@@ -20,7 +20,6 @@
 .prose h6 {
   color: var(--text);
   line-height: 1.25;
-  scroll-margin-top: calc(var(--header-height) + 16px);
 }
 
 .prose h2 {

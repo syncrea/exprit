@@ -227,3 +227,42 @@ test('every internal link and anchor in the build resolves', async ({
   }
   expect(broken).toEqual([]);
 });
+
+test.describe('scroll spy', () => {
+  test.skip(
+    ({ viewport }) => (viewport?.width ?? 0) < 1201,
+    'the "On this page" list is only shown on wide screens',
+  );
+
+  test('highlights the section in view in both navs', async ({ page }) => {
+    await page.goto('/getting-started/');
+    const tocLinks = page.locator('.docs-toc a[aria-current="location"]');
+    const sections = page.locator('.prose h2[id]');
+    const target = sections.nth(3);
+    const slug = await target.getAttribute('id');
+
+    await target.scrollIntoViewIfNeeded();
+    await page.evaluate((id) => {
+      document.getElementById(id ?? '')?.scrollIntoView({ block: 'start' });
+    }, slug);
+
+    await expect(tocLinks).toHaveCount(1);
+    await expect(tocLinks).toHaveAttribute('href', `#${slug}`);
+    await expect(
+      page.locator(`.docs-sidebar a[href="#${slug}"]`),
+    ).toHaveAttribute('aria-current', 'location');
+    // The page-level marker is untouched.
+    await expect(
+      page.locator('.docs-sidebar a[aria-current="page"]'),
+    ).toHaveCount(1);
+  });
+
+  test('marks the last section at the end of the page', async ({ page }) => {
+    await page.goto('/getting-started/');
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    const last = await page.locator('.docs-toc a').last().getAttribute('href');
+    await expect(
+      page.locator('.docs-toc a[aria-current="location"]'),
+    ).toHaveAttribute('href', last ?? '');
+  });
+});
