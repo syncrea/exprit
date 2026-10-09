@@ -51,6 +51,13 @@
     },
     "./package.json": "./package.json"
   },
+  "typesVersions": {
+    "*": {
+      "core": [
+        "./dist/core.d.cts"
+      ]
+    }
+  },
   "files": [
     "dist",
     "!dist/**/*.map",

@@ -79,3 +79,14 @@ describe('createModernRegistry', () => {
     expect(Object.isFrozen(MODERN_GLOBALS['Number'])).toBe(true);
   });
 });
+
+describe('legacyFunctions', () => {
+  it('exposes every function of the module, frozen', async () => {
+    const { legacyFunctions } = await import('../index');
+    const module = await import('./legacy-functions');
+    expect(Object.keys(legacyFunctions).sort()).toEqual(
+      Object.keys(module).sort(),
+    );
+    expect(Object.isFrozen(legacyFunctions)).toBe(true);
+  });
+});
