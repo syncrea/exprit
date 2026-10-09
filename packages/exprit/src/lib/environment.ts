@@ -1,4 +1,9 @@
-import type { ExpressionFunction, Registry } from '@exprit/core';
+import {
+  resolveLimits,
+  type ExpressionFunction,
+  type Limits,
+  type Registry,
+} from '@exprit/core';
 import {
   createLegacyRegistry,
   createLegacyTables,
@@ -6,6 +11,7 @@ import {
 } from '@exprit/registry';
 
 import {
+  isModernOperatorEnabled,
   isOperatorEnabled,
   type Dialect,
   type OperatorOptions,
@@ -39,6 +45,8 @@ export interface Environment {
   readonly operators: Readonly<OperatorOptions>;
   /** Whether `a.b` member access is allowed. */
   readonly allowMemberAccess: boolean;
+  /** Resource limits enforced at parse and evaluation time. */
+  readonly limits: Limits;
 }
 
 /**
@@ -62,6 +70,11 @@ export interface EnvironmentOptions {
   readonly operators?: OperatorOptions;
   /** Allow `a.b` member access. Defaults to `true`. */
   readonly allowMemberAccess?: boolean;
+  /**
+   * Resource limits. Each is on by default with a generous value; set a field
+   * to `Infinity` to disable it. See {@link Limits}.
+   */
+  readonly limits?: Partial<Limits>;
 }
 
 const freezeTable = <T>(
@@ -73,8 +86,10 @@ const freezeTable = <T>(
  * Used by `CompatParser`, whose tables may have had built-ins removed.
  */
 export const environmentFromTables = (
-  tables: Omit<Environment, 'operators' | 'allowMemberAccess'> &
-    Partial<Pick<Environment, 'operators' | 'allowMemberAccess'>>,
+  tables: Omit<Environment, 'operators' | 'allowMemberAccess' | 'limits'> &
+    Partial<Pick<Environment, 'operators' | 'allowMemberAccess'>> & {
+      readonly limits?: Partial<Limits>;
+    },
 ): Environment =>
   Object.freeze({
     dialect: tables.dialect,
@@ -85,6 +100,7 @@ export const environmentFromTables = (
     consts: freezeTable(tables.consts),
     operators: Object.freeze({ ...tables.operators }),
     allowMemberAccess: tables.allowMemberAccess ?? true,
+    limits: resolveLimits(tables.limits),
   });
 
 /**
@@ -116,6 +132,7 @@ export const extend = (
     consts: { ...base.consts, ...options.consts },
     operators: { ...base.operators, ...options.operators },
     allowMemberAccess: options.allowMemberAccess ?? base.allowMemberAccess,
+    limits: { ...base.limits, ...options.limits },
   });
 
 /**
@@ -151,19 +168,28 @@ export const createEnvironment = (
  */
 export const DEFAULT_ENVIRONMENT: Environment = createEnvironment();
 
-/** Whether an operator is switched on in the environment. */
+/** Whether a legacy operator is switched on in the environment. */
 export const isEnabled = (
   environment: Environment,
   operator: string,
 ): boolean => isOperatorEnabled(environment.operators, operator);
 
+/** Whether a modern operator symbol is switched on in the environment. */
+export const isModernEnabled = (
+  environment: Environment,
+  operator: string,
+): boolean => isModernOperatorEnabled(environment.operators, operator);
+
 /** Builds the evaluator registry for an environment. */
 export const createRegistry = (environment: Environment): Registry =>
   environment.dialect === 'modern'
-    ? createModernRegistry({
-        functions: environment.functions,
-        consts: environment.consts,
-      })
+    ? createModernRegistry(
+        {
+          functions: environment.functions,
+          consts: environment.consts,
+        },
+        environment.limits,
+      )
     : createLegacyRegistry(
         {
           unaryOps: environment.unaryOps,
@@ -173,4 +199,5 @@ export const createRegistry = (environment: Environment): Registry =>
           consts: environment.consts,
         },
         (operator) => isEnabled(environment, operator),
+        environment.limits,
       );

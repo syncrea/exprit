@@ -2,19 +2,24 @@ import type { CallNode, ElementNode, ExpressionNode, ObjectNode } from './ast';
 import { readMember } from './member-access';
 import type { Registry, Variables } from './registry';
 import {
+  appendElement,
   applyLogical,
+  assertObjectSize,
   assignProperty,
   assignVariable,
   callValue,
   concatTemplate,
+  createBudget,
   defineNamedFunction,
   isNullish,
   isUnresolvable,
   lookupOperator,
+  markOwned,
+  receiverFor,
   resolveIdentifier,
   SHORT_CIRCUIT,
   spreadProperties,
-  spreadValues,
+  tick,
   withLocals,
   withVariables,
   type Context,
@@ -23,12 +28,27 @@ import {
 const evaluateElements = (
   elements: readonly ElementNode[],
   context: Context,
-): unknown[] =>
-  elements.flatMap((element) =>
-    element.type === 'Spread'
-      ? spreadValues(evaluateNode(element.argument, context))
-      : [evaluateNode(element, context)],
-  );
+): unknown[] => {
+  const result: unknown[] = [];
+  for (const element of elements) {
+    if (element.type === 'Spread') {
+      appendElement(
+        result,
+        evaluateNode(element.argument, context),
+        true,
+        context.registry,
+      );
+    } else {
+      appendElement(
+        result,
+        evaluateNode(element, context),
+        false,
+        context.registry,
+      );
+    }
+  }
+  return markOwned(result);
+};
 
 const evaluateObject = (
   node: ObjectNode,
@@ -46,7 +66,7 @@ const evaluateObject = (
       );
     }
   }
-  return result;
+  return markOwned(assertObjectSize(result, context.registry));
 };
 
 const evaluateCall = (node: CallNode, context: Context): unknown => {
@@ -65,7 +85,12 @@ const evaluateCall = (node: CallNode, context: Context): unknown => {
       callee.type === 'Member'
         ? callee.property
         : (evaluateNode(callee.index, context) as PropertyKey);
-    fn = readMember(receiver, key, context.registry.methods);
+    fn = readMember(
+      receiver,
+      key,
+      context.registry.methods,
+      context.registry.limits,
+    );
   } else {
     fn = evaluateNode(callee, context);
     if (fn === SHORT_CIRCUIT) {
@@ -75,10 +100,15 @@ const evaluateCall = (node: CallNode, context: Context): unknown => {
   if (node.optional && isNullish(fn)) {
     return SHORT_CIRCUIT;
   }
-  return callValue(fn, receiver, evaluateElements(node.arguments, context));
+  return callValue(
+    fn,
+    receiverFor(receiver),
+    evaluateElements(node.arguments, context),
+  );
 };
 
 const evaluateNode = (node: ExpressionNode, context: Context): unknown => {
+  tick(context.budget);
   switch (node.type) {
     case 'Literal':
       return node.value;
@@ -129,7 +159,12 @@ const evaluateNode = (node: ExpressionNode, context: Context): unknown => {
         node.type === 'Member'
           ? node.property
           : (evaluateNode(node.index, context) as PropertyKey);
-      return readMember(object, key, context.registry.methods);
+      return readMember(
+        object,
+        key,
+        context.registry.methods,
+        context.registry.limits,
+      );
     }
     case 'Call':
       return evaluateCall(node, context);
@@ -148,6 +183,7 @@ const evaluateNode = (node: ExpressionNode, context: Context): unknown => {
       return concatTemplate(
         node.quasis,
         node.expressions.map((expression) => evaluateNode(expression, context)),
+        context.registry,
       );
     case 'Assignment':
       return assignVariable(
@@ -187,4 +223,9 @@ export const evaluate = (
   node: ExpressionNode,
   registry: Registry,
   variables: Variables = {},
-): unknown => evaluateNode(node, { registry, scope: { variables } });
+): unknown =>
+  evaluateNode(node, {
+    registry,
+    scope: { variables },
+    budget: createBudget(registry),
+  });

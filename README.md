@@ -64,6 +64,9 @@ It deploys to GitHub Pages from `main` (`.github/workflows/docs.yml`). See
 ## Documentation
 
 - [Architecture](docs/architecture.md): pipeline, AST, registry, security model, build
+- **Security:** what the sandbox guarantees and what the host must guarantee
+  (resource limits, running untrusted input out-of-process) are in the
+  [package README's Security section](packages/exprit/README.md#security)
 - [Dialects](docs/dialects.md): syntax reference for legacy and modern, and the design decisions
 - [Differences from expr-eval](docs/differences-from-expr-eval.md)
 - [TypeScript guidelines](docs/typescript.md)

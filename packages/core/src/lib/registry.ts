@@ -2,6 +2,8 @@
  * Any callable an expression may invoke. `never[]` parameters let functions with
  * concrete signatures such as `Math.sin` be registered without casts.
  */
+import type { Limits } from './limits';
+
 export type ExpressionFunction = (...args: never[]) => unknown;
 
 /** Variables visible to an evaluation. Legacy assignments write into this object. */
@@ -40,4 +42,6 @@ export interface Registry {
   readonly consts: Readonly<Record<string, unknown>>;
   readonly methods: SafeMethods;
   readonly resolveIdentifier: IdentifierResolver;
+  /** Resource limits enforced while evaluating. */
+  readonly limits: Limits;
 }

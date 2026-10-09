@@ -17,9 +17,23 @@ export interface CliIo {
   readonly isInteractive: boolean;
   /** The terminal, when there is one; enables line editing and history in the REPL. */
   readonly terminal?: NodeJS.WritableStream;
+  /** Whether results go to a terminal; control characters are escaped if so. */
+  readonly isOutputTty?: boolean;
   readonly writeOut: (text: string) => void;
   readonly writeErr: (text: string) => void;
 }
+
+/**
+ * Escapes C0/C1 control characters (except newline and tab) as `\xHH`, so an
+ * attacker-controlled result cannot inject cursor-movement or other terminal
+ * escape sequences into the operator's terminal (F7).
+ */
+export const escapeControlCharacters = (text: string): string =>
+  // eslint-disable-next-line no-control-regex -- intentionally matching control chars to neutralise them
+  text.replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, (character) => {
+    const code = character.charCodeAt(0);
+    return `\\x${code.toString(16).padStart(2, '0')}`;
+  });
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -61,7 +75,10 @@ const evaluateLine = (
       parse(line, session.env),
       session.variables,
     );
-    io.writeOut(`${formatResult(value, session.isJson)}\n`);
+    const formatted = formatResult(value, session.isJson);
+    io.writeOut(
+      `${io.isOutputTty ? escapeControlCharacters(formatted) : formatted}\n`,
+    );
     return { session: { ...session, variables }, isSuccess: true };
   } catch (error) {
     io.writeErr(`${errorMessage(error)}\n`);

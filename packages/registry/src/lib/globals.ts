@@ -1,3 +1,17 @@
+import {
+  assertAllowedName,
+  assertNoCoercionHook,
+  markOwned,
+  markOwnedIfContainer,
+  stringifyValue,
+} from '@exprit/core';
+
+/** Wraps a container-returning global so its result is evaluator-owned (F4). */
+const owning =
+  <A extends unknown[]>(fn: (...args: A) => unknown) =>
+  (...args: A): unknown =>
+    markOwnedIfContainer(fn(...args));
+
 const pick = <T extends object>(
   source: T,
   keys: readonly (keyof T)[],
@@ -44,12 +58,32 @@ export const MODERN_GLOBALS: Readonly<Record<string, unknown>> = Object.freeze({
       'POSITIVE_INFINITY',
     ]),
   }),
-  String: callableNamespace((value) => String(value), {}),
+  String: callableNamespace((value) => stringifyValue(value), {}),
   Boolean: callableNamespace((value) => Boolean(value), {}),
   Array: Object.freeze({ isArray: Array.isArray }),
-  Object: pick(Object, ['keys', 'values', 'entries', 'fromEntries']),
+  Object: Object.freeze({
+    keys: owning((value: object) => Object.keys(value)),
+    values: owning((value: object) => Object.values(value)),
+    // Mark the inner [key, value] pairs too, not just the outer array.
+    entries: owning((value: object) =>
+      Object.entries(value).map((pair) => markOwned(pair)),
+    ),
+    fromEntries: owning(
+      (entries: Iterable<readonly [PropertyKey, unknown]>) => {
+        const result: Record<string, unknown> = {};
+        for (const [key, value] of entries) {
+          const name = String(key);
+          assertAllowedName(name);
+          assertNoCoercionHook(name, value);
+          result[name] = value;
+        }
+        return result;
+      },
+    ),
+  }),
   JSON: Object.freeze({
-    parse: (text: unknown) => JSON.parse(String(text)) as unknown,
+    parse: (text: unknown) =>
+      markOwnedIfContainer(JSON.parse(String(text))) as unknown,
     stringify: (value: unknown, _replacer?: unknown, space?: unknown) =>
       JSON.stringify(value, null, space as number | string | undefined),
   }),

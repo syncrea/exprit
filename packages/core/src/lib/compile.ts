@@ -2,19 +2,24 @@ import type { ElementNode, ExpressionNode } from './ast';
 import { readMember } from './member-access';
 import type { Registry, Variables } from './registry';
 import {
+  appendElement,
   applyLogical,
+  assertObjectSize,
   assignProperty,
   assignVariable,
   callValue,
   concatTemplate,
+  createBudget,
   defineNamedFunction,
   isNullish,
   isUnresolvable,
   lookupOperator,
+  markOwned,
+  receiverFor,
   resolveIdentifier,
   SHORT_CIRCUIT,
   spreadProperties,
-  spreadValues,
+  tick,
   withLocals,
   withVariables,
   type Context,
@@ -30,13 +35,24 @@ const compileElements = (
       ? { spread: true, run: compileNode(element.argument) }
       : { spread: false, run: compileNode(element) },
   );
-  return (context) =>
-    parts.flatMap((part) =>
-      part.spread ? spreadValues(part.run(context)) : [part.run(context)],
-    );
+  return (context) => {
+    const result: unknown[] = [];
+    for (const part of parts) {
+      appendElement(result, part.run(context), part.spread, context.registry);
+    }
+    return markOwned(result);
+  };
 };
 
 const compileNode = (node: ExpressionNode): Compiled => {
+  const run = compileNodeInner(node);
+  return (context) => {
+    tick(context.budget);
+    return run(context);
+  };
+};
+
+const compileNodeInner = (node: ExpressionNode): Compiled => {
   switch (node.type) {
     case 'Literal': {
       const { value } = node;
@@ -109,6 +125,7 @@ const compileNode = (node: ExpressionNode): Compiled => {
           target,
           key(context) as PropertyKey,
           context.registry.methods,
+          context.registry.limits,
         );
       };
     }
@@ -136,10 +153,11 @@ const compileNode = (node: ExpressionNode): Compiled => {
             receiver,
             key(context) as PropertyKey,
             context.registry.methods,
+            context.registry.limits,
           );
           return optional && isNullish(fn)
             ? SHORT_CIRCUIT
-            : callValue(fn, receiver, args(context));
+            : callValue(fn, receiverFor(receiver), args(context));
         };
       }
       const target = compileNode(callee);
@@ -183,7 +201,7 @@ const compileNode = (node: ExpressionNode): Compiled => {
             );
           }
         }
-        return result;
+        return markOwned(assertObjectSize(result, context.registry));
       };
     }
     case 'Arrow': {
@@ -200,6 +218,7 @@ const compileNode = (node: ExpressionNode): Compiled => {
         concatTemplate(
           quasis,
           expressions.map((expression) => expression(context)),
+          context.registry,
         );
     }
     case 'Assignment': {
@@ -245,5 +264,6 @@ export const compile = (
   registry: Registry,
 ): CompiledExpression => {
   const run = compileNode(node);
-  return (variables = {}) => run({ registry, scope: { variables } });
+  return (variables = {}) =>
+    run({ registry, scope: { variables }, budget: createBudget(registry) });
 };

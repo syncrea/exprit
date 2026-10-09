@@ -1,4 +1,6 @@
 import {
+  assertMaxDepth,
+  DEFAULT_LIMITS,
   ExpressionSyntaxError,
   isBlockedName,
   type ExpressionNode,
@@ -18,6 +20,10 @@ export interface LegacyGrammar {
   readonly consts: Readonly<Record<string, unknown>>;
   readonly isOperatorEnabled: (operator: string) => boolean;
   readonly allowMemberAccess: boolean;
+  /** Longest source string accepted; defaults to the standard limit. */
+  readonly maxSourceLength?: number;
+  /** Deepest AST accepted; defaults to the standard limit. */
+  readonly maxDepth?: number;
 }
 
 /** Punctuators that can be switched off through the `operators` option. */
@@ -120,6 +126,13 @@ export const parseLegacy = (
     throw new ExpressionSyntaxError(reason, source, at);
   };
 
+  const maxSourceLength =
+    grammar.maxSourceLength ?? DEFAULT_LIMITS.maxSourceLength;
+  const maxDepth = grammar.maxDepth ?? DEFAULT_LIMITS.maxDepth;
+  if (source.length > maxSourceLength) {
+    fail(`expression is too long (${source.length} > ${maxSourceLength})`, 0);
+  }
+
   const isOperatorWord = (word: string): boolean =>
     grammar.isOperatorEnabled(word) &&
     (Object.hasOwn(grammar.binaryOps, word) ||
@@ -205,15 +218,20 @@ export const parseLegacy = (
 
   /** A full expression, including `;`-separated sequences. */
   const parseExpression = (): ExpressionNode => {
+    if (++parseDepth > maxDepth) {
+      fail('expression is nested too deeply', peek().token.start);
+    }
     const first = parse(0);
-    if (!accept(';')) {
-      return first;
-    }
-    const next = peek();
-    if (next.kind === 'eof' || isOperator(next, ')')) {
-      return { type: 'Sequence', expressions: [first] };
-    }
-    return { type: 'Sequence', expressions: [first, parseExpression()] };
+    const result: ExpressionNode = !accept(';')
+      ? first
+      : ((): ExpressionNode => {
+          const next = peek();
+          return next.kind === 'eof' || isOperator(next, ')')
+            ? { type: 'Sequence', expressions: [first] }
+            : { type: 'Sequence', expressions: [first, parseExpression()] };
+        })();
+    parseDepth--;
+    return result;
   };
 
   const parseList = (close: string): ExpressionNode[] => {
@@ -380,11 +398,16 @@ export const parseLegacy = (
     return { type: 'Binary', operator: op, left, right: parse(power) };
   };
 
+  let parseDepth = 0;
   function parse(rightBindingPower: number): ExpressionNode {
+    if (++parseDepth > maxDepth) {
+      fail('expression is nested too deeply', peek().token.start);
+    }
     let left = nud(advance());
     while (rightBindingPower < leftBindingPower(peek())) {
       left = led(advance(), left);
     }
+    parseDepth--;
     return left;
   }
 
@@ -392,5 +415,8 @@ export const parseLegacy = (
   if (peek().kind !== 'eof') {
     fail('Expected EOF', peek().token.start);
   }
+  assertMaxDepth(root, maxDepth, () =>
+    fail('expression is nested too deeply', 0),
+  );
   return root;
 };

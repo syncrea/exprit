@@ -2,6 +2,7 @@ import type { ExpressionNode } from './ast';
 import { compile } from './compile';
 import { ExpressionSecurityError } from './errors';
 import { evaluate } from './evaluate';
+import { DEFAULT_LIMITS } from './limits';
 import { readMember } from './member-access';
 import type { Registry } from './registry';
 import { collectSymbols, simplify, substitute } from './transform';
@@ -42,6 +43,7 @@ const registry: Registry = {
       ? { found: true, value: scope.variables[name] }
       : { found: false, message: `${name} is not defined` };
   },
+  limits: DEFAULT_LIMITS,
 };
 
 const both = (

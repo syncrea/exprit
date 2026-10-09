@@ -41,9 +41,12 @@ export {
 } from './lib/environment';
 export type { Dialect, OperatorOptions, ParserOptions } from './lib/options';
 export {
+  DEFAULT_LIMITS,
+  ExpressionLimitError,
   ExpressionSecurityError,
   ExpressionSyntaxError,
   type ExpressionNode,
+  type Limits,
   type SymbolOptions,
 } from '@exprit/core';
 

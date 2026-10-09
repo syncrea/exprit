@@ -15,6 +15,7 @@ import {
   createRegistry,
   DEFAULT_ENVIRONMENT,
   isEnabled,
+  isModernEnabled,
   type Environment,
 } from './environment';
 
@@ -101,7 +102,12 @@ export const parse = (
 ): ParsedExpression =>
   create(
     env.dialect === 'modern'
-      ? parseModern(source)
+      ? parseModern(source, {
+          allowMemberAccess: env.allowMemberAccess,
+          isOperatorEnabled: (operator) => isModernEnabled(env, operator),
+          maxSourceLength: env.limits.maxSourceLength,
+          maxDepth: env.limits.maxDepth,
+        })
       : parseLegacy(source, {
           unaryOps: env.unaryOps,
           binaryOps: env.binaryOps,
@@ -109,6 +115,8 @@ export const parse = (
           consts: env.consts,
           isOperatorEnabled: (operator) => isEnabled(env, operator),
           allowMemberAccess: env.allowMemberAccess,
+          maxSourceLength: env.limits.maxSourceLength,
+          maxDepth: env.limits.maxDepth,
         }),
     env,
   );

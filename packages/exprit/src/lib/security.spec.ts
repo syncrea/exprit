@@ -1,8 +1,11 @@
 import { createRequire } from 'node:module';
 
+import { ExpressionLimitError, ExpressionSyntaxError } from '@exprit/core';
 import { DEFAULT_SAFE_METHODS } from '@exprit/registry';
 
+import { compile, evaluate, parse, print, simplify } from './api';
 import { CompatParser as Parser } from './compat-parser';
+import { createEnvironment } from './environment';
 
 interface SloppyHost {
   readonly step: (cb: () => unknown) => unknown;
@@ -122,22 +125,341 @@ describe('sandboxing', () => {
     expect(() => legacy.parse('constructor(x) = 1')).toThrow(/cannot be used/);
   });
 
-  it('does not let an expression choose the receiver of a host method', () => {
+  it('does not let an expression choose the receiver of a host method (F4)', () => {
     const account = {
       owner: 'host',
       describe(this: { owner?: string } | undefined): string {
         return this?.owner ?? 'no receiver';
       },
     };
+    // Array-callback thisArg is still dropped, for map and flatMap.
     expect(
       modern.evaluate('[0].map(account.describe, { owner: "attacker" })', {
         account,
       }),
     ).toEqual(['no receiver']);
+    expect(
+      modern.evaluate('[0].flatMap(account.describe, { owner: "attacker" })', {
+        account,
+      }),
+    ).toEqual(['no receiver']);
+    // A method copied onto an attacker-built object literal is called with no
+    // receiver, not the literal the attacker crafted.
+    for (const run of [
+      (source: string): unknown => modern.evaluate(source, { account }),
+      (source: string): unknown => modern.parse(source).compile()({ account }),
+    ]) {
+      expect(run('({ m: account.describe, owner: "x" }).m()')).toBe(
+        'no receiver',
+      );
+      // Objects and arrays the expression builds through the sandbox globals
+      // and safe methods are evaluator-owned too, so they cannot be used to
+      // rebind a host method's receiver either.
+      expect(
+        run(
+          'Object.fromEntries([["m", account.describe], ["owner", "x"]]).m()',
+        ),
+      ).toBe('no receiver');
+      expect(run('[account.describe].slice()[0]()')).toBe('no receiver');
+      expect(run('[account.describe].map(f => f)[0]()')).toBe('no receiver');
+      // A host object passed as a variable keeps its natural receiver.
+      expect(run('account.describe()')).toBe('host');
+    }
   });
 
   it('keeps the shared safe-method whitelist frozen', () => {
     expect(Object.isFrozen(DEFAULT_SAFE_METHODS)).toBe(true);
     expect(Object.isFrozen(DEFAULT_SAFE_METHODS.array)).toBe(true);
+  });
+});
+
+// F2: the modern dialect used to ignore these switches, giving a false sense
+// of safety. Both must now be honoured in parse, evaluate and compile.
+describe('modern dialect honours hardening switches (F2)', () => {
+  const noMembers = createEnvironment({
+    dialect: 'modern',
+    allowMemberAccess: false,
+  });
+
+  it.each([
+    'a.b',
+    'a?.b',
+    'a["b"]',
+    'a?.["b"]',
+    '"x".toUpperCase()',
+    'obj.method()',
+  ])('rejects member access %s when allowMemberAccess is false', (source) => {
+    expect(() => parse(source, noMembers)).toThrow(/member access/);
+  });
+
+  it('still allows plain calls and array literals without member access', () => {
+    expect(
+      evaluate(parse('f(2)', noMembers), { f: (n: number) => n + 1 }),
+    ).toBe(3);
+    expect(evaluate(parse('[1, 2, 3]', noMembers))).toEqual([1, 2, 3]);
+  });
+
+  it.each<[string, Record<string, boolean>]>([
+    ['2 * 3', { multiply: false }],
+    ['2 + 3', { add: false }],
+    ['2 - 3', { subtract: false }],
+    ['2 ** 3', { power: false }],
+    ['2 < 3', { comparison: false }],
+    ['a && b', { logical: false }],
+    ['a ?? b', { logical: false }],
+    ['a ? b : c', { conditional: false }],
+    ['[1, 2]', { array: false }],
+    ['a[0]', { array: false }],
+  ])('rejects %s when its operator is disabled', (source, operators) => {
+    const env = createEnvironment({ dialect: 'modern', operators });
+    expect(() => parse(source, env)).toThrow(/disabled|member access/);
+  });
+
+  it('leaves unrelated operators working when one is disabled', () => {
+    const env = createEnvironment({
+      dialect: 'modern',
+      operators: { multiply: false },
+    });
+    expect(evaluate(parse('2 + 3', env))).toBe(5);
+    expect(compile(parse('2 + 3', env))()).toBe(5);
+  });
+});
+
+// F1: a short expression could allocate an uncatchable amount of memory. The
+// amplifying methods and string/array growth must throw a catchable
+// ExpressionLimitError before the allocation, in both evaluate and compile.
+describe('resource limits stop memory exhaustion (F1)', () => {
+  const modern = createEnvironment({ dialect: 'modern' });
+  const legacy = createEnvironment();
+
+  const bothThrow = (
+    source: string,
+    env = modern,
+    vars: Record<string, unknown> = {},
+  ): void => {
+    expect(() => evaluate(parse(source, env), vars)).toThrow(
+      ExpressionLimitError,
+    );
+    expect(() => compile(parse(source, env))(vars)).toThrow(
+      ExpressionLimitError,
+    );
+  };
+
+  it.each([
+    '"x".padStart(300000000)',
+    '"x".padStart(300000000).split("")',
+    '"a".repeat(1000000000)',
+    '"x".padEnd(99999999)',
+    '"ab".repeat(500000000)',
+    '"a,b".repeat(20000000).split(",")',
+  ])('rejects amplifying string method %s', (source) => {
+    bothThrow(source);
+  });
+
+  it('rejects string concatenation past the limit', () => {
+    const base = { s: 'x'.repeat(6_000_000) };
+    bothThrow('s + s', modern, base);
+    bothThrow('`${s}${s}`', modern, base);
+    bothThrow('s || s', legacy, base);
+  });
+
+  it('rejects array growth past the limit', () => {
+    const big = { a: new Array(6_000_000).fill(0) };
+    bothThrow('a.concat(a)', modern, big);
+    bothThrow('[...a, ...a]', modern, big);
+    bothThrow('[a, a].flat()', modern, { a: big.a });
+  });
+
+  it('honours a custom lower limit and leaves normal use working', () => {
+    const tight = createEnvironment({
+      dialect: 'modern',
+      limits: { maxStringLength: 100 },
+    });
+    expect(() => evaluate(parse('"x".repeat(1000)', tight))).toThrow(
+      ExpressionLimitError,
+    );
+    expect(evaluate(parse('"x".repeat(50)', tight))).toHaveLength(50);
+  });
+
+  it('lets Infinity disable a limit', () => {
+    const unlimited = createEnvironment({
+      dialect: 'modern',
+      limits: { maxStringLength: Infinity },
+    });
+    expect(evaluate(parse('"x".repeat(1000000)', unlimited))).toHaveLength(
+      1_000_000,
+    );
+  });
+
+  it('enforces a step budget in evaluate and compile', () => {
+    const budgeted = createEnvironment({
+      dialect: 'modern',
+      limits: { maxSteps: 50 },
+    });
+    const source = 'items.map(x => x * 2).map(x => x + 1)';
+    const vars = { items: new Array(1000).fill(1) };
+    expect(() => evaluate(parse(source, budgeted), vars)).toThrow(
+      ExpressionLimitError,
+    );
+    expect(() => compile(parse(source, budgeted))(vars)).toThrow(
+      ExpressionLimitError,
+    );
+  });
+});
+
+// F3: deeply nested or long-chained input overflowed the stack across parse,
+// evaluate, compile, print and simplify. The parser now fails fast.
+describe('parser depth and length limits (F3)', () => {
+  it.each<['legacy' | 'modern']>([['legacy'], ['modern']])(
+    'rejects deeply nested input in the %s dialect',
+    (dialect) => {
+      const env = createEnvironment({ dialect });
+      const nested = '('.repeat(5000) + '1' + ')'.repeat(5000);
+      expect(() => parse(nested, env)).toThrow(ExpressionSyntaxError);
+      expect(() => parse(nested, env)).toThrow(/nested too deeply/);
+    },
+  );
+
+  it('rejects a long left-associative chain before it builds a deep tree', () => {
+    expect(() => parse('1' + '+1'.repeat(10000))).toThrow(/nested too deeply/);
+  });
+
+  it('rejects source longer than the limit', () => {
+    const env = createEnvironment({ limits: { maxSourceLength: 100 } });
+    expect(() => parse('1 + '.repeat(100) + '1', env)).toThrow(/too long/);
+  });
+
+  it('accepts ordinary nesting within the limit', () => {
+    expect(evaluate(parse('((((1 + 2))))'))).toBe(3);
+  });
+});
+
+// F5: coercing a host function to a string used to reveal its full source.
+describe('does not disclose host function source (F5)', () => {
+  const secretFn = function hostFn(x: number): number {
+    const secret = 'sk-live-TOPSECRET';
+    return x + secret.length;
+  };
+  const modern = createEnvironment({ dialect: 'modern' });
+
+  it.each<[string, Record<string, unknown>]>([
+    ['String(f)', { f: secretFn }],
+    ['`${f}`', { f: secretFn }],
+    ['f + ""', { f: secretFn }],
+  ])('masks the function in %s', (source, vars) => {
+    expect(evaluate(parse(source, modern), vars)).toBe('[Function]');
+    expect(compile(parse(source, modern))(vars)).toBe('[Function]');
+  });
+
+  it('masks a function inlined by simplify and printed', () => {
+    const printed = print(simplify(parse('x', modern), { x: secretFn }));
+    expect(printed).not.toContain('TOPSECRET');
+    expect(printed).toContain('[Function]');
+  });
+
+  it('masks a function concatenated in the legacy dialect', () => {
+    expect(evaluate(parse('f || "!"'), { f: secretFn })).toBe('[Function]!');
+  });
+});
+
+// Follow-ups from the sandbox review of the fixes above.
+describe('sandbox review follow-ups', () => {
+  const modern = createEnvironment({ dialect: 'modern' });
+  const both = (
+    source: string,
+    vars: Record<string, unknown> = {},
+    env = modern,
+  ): unknown[] => [
+    evaluate(parse(source, env), vars),
+    compile(parse(source, env))(vars),
+  ];
+
+  it('converts guard arguments once, so a valueOf hook cannot lie to the guard', () => {
+    let calls = 0;
+    const flip = { valueOf: (): number => (calls++ === 0 ? 1 : 50_000_000) };
+    for (const run of [
+      (): unknown =>
+        evaluate(parse('"".padStart(n, "a")', modern), { n: flip }),
+      (): unknown => compile(parse('"".padStart(n, "a")', modern))({ n: flip }),
+    ]) {
+      calls = 0;
+      expect((run() as string).length).toBeLessThanOrEqual(10_000_000);
+    }
+  });
+
+  it('splits a maximum-length string into characters', () => {
+    const env = createEnvironment({
+      dialect: 'modern',
+      limits: { maxStringLength: 100, maxArrayLength: 100 },
+    });
+    expect(both('"a".repeat(100).split("")', {}, env)).toEqual([
+      new Array(100).fill('a'),
+      new Array(100).fill('a'),
+    ]);
+  });
+
+  it('bounds normalize and case conversion', () => {
+    expect(() =>
+      evaluate(parse('"ﷺ".repeat(10000000).normalize("NFKD")', modern)),
+    ).toThrow(ExpressionLimitError);
+  });
+
+  it('bounds the legacy join function', () => {
+    const env = createEnvironment({ limits: { maxStringLength: 100 } });
+    expect(() =>
+      evaluate(parse('join(",", xs)', env), { xs: new Array(60).fill('ab') }),
+    ).toThrow(ExpressionLimitError);
+    expect(evaluate(parse('join(",", xs)', env), { xs: ['a', 'b'] })).toBe(
+      'a,b',
+    );
+  });
+
+  it('rejects functions under coercion-hook keys of built objects', () => {
+    const list: unknown[] = [];
+    const host = {
+      add(this: { items?: unknown[] } | undefined, value: unknown): void {
+        this?.items?.push(value);
+      },
+    };
+    for (const source of [
+      '`${ {toString: host.add, items: list} }`',
+      '({ valueOf: host.add, items: list }) * 1',
+      'Object.fromEntries([["toString", host.add]])',
+    ]) {
+      expect(() => evaluate(parse(source, modern), { host, list })).toThrow(
+        /cannot be stored/,
+      );
+      expect(() => compile(parse(source, modern))({ host, list })).toThrow(
+        /cannot be stored/,
+      );
+    }
+    expect(list).toEqual([]);
+  });
+
+  it('calls a function read from an Object.entries pair with no receiver', () => {
+    const host = {
+      peek(this: unknown): string {
+        return this === undefined ? 'no receiver' : 'receiver';
+      },
+    };
+    expect(both('Object.entries({ k: host.peek })[0][1]()', { host })).toEqual([
+      'no receiver',
+      'no receiver',
+    ]);
+  });
+
+  it('gates ?.[ on the array option and allows f?.() without member access', () => {
+    const noArray = createEnvironment({
+      dialect: 'modern',
+      operators: { array: false },
+    });
+    expect(() => parse('a?.[0]', noArray)).toThrow(/disabled/);
+    const noMembers = createEnvironment({
+      dialect: 'modern',
+      allowMemberAccess: false,
+    });
+    expect(
+      evaluate(parse('g?.(1)', noMembers), { g: (n: number) => n + 1 }),
+    ).toBe(2);
   });
 });
