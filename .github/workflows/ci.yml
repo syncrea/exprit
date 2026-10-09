@@ -14,7 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20, 22, 24]
+        # The dev tooling (vitest 5, Astro 7) needs Node >= 22.12; Node 20
+        # support of the published packages is covered by `runtime-node-20`.
+        node-version: [22, 24]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -35,3 +37,26 @@ jobs:
       - run: pnpm nx run exprit:conformance
         env:
           CONFORMANCE_TARGET: dist
+
+  runtime-node-20:
+    # Builds on Node 22, then runs the built packages on Node 20, which the
+    # published packages still support.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm nx run-many -t build -p exprit cli
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - run: node tools/scripts/smoke-runtime.mjs
