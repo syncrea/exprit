@@ -11,7 +11,9 @@
     "check": "nx run-many -t lint typecheck test build conformance",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "release": "nx release"
+    "release": "nx release",
+    "docs:dev": "nx run docs:dev",
+    "docs:preview": "nx run docs:preview"
   },
   "private": true,
   "devDependencies": {
