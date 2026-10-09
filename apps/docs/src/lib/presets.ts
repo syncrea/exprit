@@ -220,3 +220,51 @@ export const PRESETS: readonly Preset[] = [
 
 export const presetById = (id: string): Preset | undefined =>
   PRESETS.find((preset) => preset.id === id);
+
+/** The query parameters that select a preset: `?example=<id>[&dialect=legacy]`. */
+export interface ExampleSelection {
+  readonly preset: Preset;
+  readonly dialect?: Dialect;
+}
+
+const EXAMPLE_PARAM = 'example';
+const DIALECT_PARAM = 'dialect';
+
+/** Reads the preset selected by a URL's query string, if any and if it exists. */
+export const readExampleSelection = (
+  search: string,
+): ExampleSelection | undefined => {
+  const params = new URLSearchParams(search);
+  const preset = presetById(params.get(EXAMPLE_PARAM) ?? '');
+  if (!preset) {
+    return undefined;
+  }
+  const dialect = params.get(DIALECT_PARAM);
+  return dialect === 'legacy' || dialect === 'modern'
+    ? { preset, dialect }
+    : { preset };
+};
+
+/**
+ * Returns `url` with the example parameters set to the selected preset, or
+ * removed when there is none. Other parameters are kept; `modern` is the
+ * default dialect, so only `legacy` is written.
+ */
+export const withExampleSelection = (
+  url: URL,
+  presetId: string | undefined,
+  dialect: Dialect,
+): URL => {
+  const next = new URL(url);
+  if (presetId) {
+    next.searchParams.set(EXAMPLE_PARAM, presetId);
+  } else {
+    next.searchParams.delete(EXAMPLE_PARAM);
+  }
+  if (presetId && dialect === 'legacy') {
+    next.searchParams.set(DIALECT_PARAM, dialect);
+  } else {
+    next.searchParams.delete(DIALECT_PARAM);
+  }
+  return next;
+};

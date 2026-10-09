@@ -108,13 +108,15 @@ export interface Timing {
 /** A batch must run at least this long to dwarf the browser's coarse clock. */
 const MIN_BATCH_MS = 2;
 /** Total time the measurement may take, so typing never stalls. */
-export const BUDGET_MS = 10;
+const BUDGET_MS = 10;
+/** Untimed runs first, so the JIT has optimised the hot path before timing. */
+const WARMUP_MS = 2;
 
 /**
  * Measures how long one evaluation takes. Browsers round `performance.now()`
- * to 100 µs or more, far coarser than a single evaluation, so this times
- * batches of doubling size until one lasts `MIN_BATCH_MS`, and reports that
- * batch's mean. A slow expression gets one timed run instead of a loop.
+ * to 100 µs or more, far coarser than a single evaluation, so after a short
+ * untimed warm-up this times batches of doubling size until one lasts
+ * `MIN_BATCH_MS`, and reports that batch's mean. A slow expression gets one timed run instead of a loop.
  *
  * @returns The timing, or `undefined` if the expression throws
  */
@@ -132,6 +134,9 @@ export const measureEvaluation = (
   };
   try {
     const started = now();
+    while (now() - started < WARMUP_MS) {
+      evaluate(expression, variables);
+    }
     let runs = 1;
     let elapsed = timeBatch(runs);
     while (
@@ -159,6 +164,51 @@ export const formatNanoseconds = (timing: Timing): string =>
 /** `≈ 1,234 ns`: a measured mean, so marked as approximate. */
 export const formatTiming = (timing: Timing): string =>
   `≈ ${formatNanoseconds(timing)}`;
+
+export interface TimedOutcome {
+  readonly outcome: RunOutcome;
+  /** Present when the evaluation succeeded. */
+  readonly timing?: Timing;
+}
+
+/**
+ * Evaluates once for the result, then times it. The first run is timed too:
+ * if it alone exceeds the budget, it is the measurement and the expression is
+ * not run again.
+ */
+export const evaluateTimed = (
+  expression: ParsedExpression,
+  variables: Variables,
+  now: () => number = () => performance.now(),
+): TimedOutcome => {
+  const start = now();
+  const outcome = evaluateSafely(expression, variables);
+  const firstRunMs = now() - start;
+  if (outcome.kind !== 'value') {
+    return { outcome };
+  }
+  const timing =
+    firstRunMs >= BUDGET_MS
+      ? { nanosecondsPerRun: firstRunMs * 1e6, runs: 1 }
+      : measureEvaluation(expression, variables, now);
+  return { outcome, timing };
+};
+
+/** Parses, evaluates and times in one go; used by the small inline demos. */
+export const runTimed = (
+  source: string,
+  dialect: Dialect,
+  variables: Variables,
+): TimedOutcome => {
+  const parsed = parseSource(source, dialect);
+  return parsed.kind === 'parsed'
+    ? evaluateTimed(parsed.expression, variables)
+    : { outcome: parsed };
+};
+
+/** The tooltip that explains a timing. */
+export const describeTiming = (timing: Timing): string =>
+  `evaluate() took ${formatNanoseconds(timing)} on average over ${timing.runs.toLocaleString('en')} ${timing.runs === 1 ? 'run' : 'runs'} in this browser`;
 
 /** Parses and evaluates in one go; used by the small inline demos. */
 export const run = (

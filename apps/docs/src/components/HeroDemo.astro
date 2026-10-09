@@ -31,6 +31,7 @@ const initial = viewOutcome(run(source, 'modern', { price: Number(price), qty: N
       <output id="hero-result" for="hero-expr hero-price hero-qty" data-result class:list={{ 'is-error': initial.isError, 'is-long': initial.isLong }}>
         {initial.text}
       </output>
+      <span class="demo-timing" data-timing></span>
     </div>
   </div>
   <div class="demo-foot">
@@ -136,6 +137,19 @@ const initial = viewOutcome(run(source, 'modern', { price: Number(price), qty: N
     font-size: 16px;
     letter-spacing: 0;
     color: var(--err);
+  }
+
+  .demo-timing {
+    margin-left: auto;
+    align-self: flex-end;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .demo-timing:empty {
+    display: none;
   }
 
   .demo-foot {

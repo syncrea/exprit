@@ -49,6 +49,7 @@ const initial = viewOutcome(run(sources.modern, 'modern', { price: Number(price)
         </output>
         <span class="mini-type" data-result-type>{initial.type}</span>
         <span class="mini-type" data-dialect-label>modern dialect</span>
+        <span class="mini-type" data-timing></span>
       </div>
       <a class="mini-link" href="/playground/">Open the full playground →</a>
     </div>
@@ -217,6 +218,10 @@ const initial = viewOutcome(run(sources.modern, 'modern', { price: Number(price)
     font-family: var(--font-mono);
     font-size: 14px;
     color: var(--muted);
+  }
+
+  .mini-type:empty {
+    display: none;
   }
 
   .mini-link {

@@ -10,10 +10,18 @@
  * - `[data-set-dialect="modern|legacy"]`: dialect buttons (`aria-pressed`)
  * - `[data-example]`: buttons that load their `data-example` source
  * - `[data-result]`, `[data-result-type]`, `[data-bool-label="name"]`: output
+ * - `[data-timing]`: how long `evaluate()` took, filled in the browser only
  */
 import type { Dialect } from '@syncrea/exprit';
 
-import { isDialect, run, viewOutcome, type RunOutcome } from '../lib/engine';
+import {
+  describeTiming,
+  formatTiming,
+  isDialect,
+  runTimed,
+  viewOutcome,
+  type TimedOutcome,
+} from '../lib/engine';
 import type { VariableType } from '../lib/presets';
 import { isVariableType, parseVariable } from '../lib/variables';
 
@@ -132,13 +140,13 @@ class ExpritLive extends HTMLElement {
       return;
     }
     const { values, error } = this.#variables();
-    const outcome: RunOutcome = error
-      ? { kind: 'runtime', message: error }
-      : run(field.value, this.#dialect, values);
-    this.#render(outcome);
+    const timed: TimedOutcome = error
+      ? { outcome: { kind: 'runtime', message: error } }
+      : runTimed(field.value, this.#dialect, values);
+    this.#render(timed);
   }
 
-  #render(outcome: RunOutcome): void {
+  #render({ outcome, timing }: TimedOutcome): void {
     const view = viewOutcome(outcome);
     const result = this.querySelector<HTMLElement>('[data-result]');
     if (result) {
@@ -149,6 +157,11 @@ class ExpritLive extends HTMLElement {
     const type = this.querySelector<HTMLElement>('[data-result-type]');
     if (type) {
       type.textContent = view.type;
+    }
+    const time = this.querySelector<HTMLElement>('[data-timing]');
+    if (time) {
+      time.textContent = timing ? formatTiming(timing) : '';
+      time.title = timing ? describeTiming(timing) : '';
     }
   }
 }

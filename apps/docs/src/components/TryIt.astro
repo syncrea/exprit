@@ -25,6 +25,7 @@ const inputId = `try-${id}`;
     <Spark size={12} fill="currentColor" />
     <label for={inputId}>Try it · edit and it re-evaluates</label>
     <span class="try-meta">{dialect}{scopeText && ` · scope: ${scopeText}`}</span>
+    <span class="try-timing" data-timing></span>
   </div>
   <div class="try-body">
     <input id={inputId} class="field try-input" type="text" data-expr value={source} spellcheck="false" autocomplete="off" autocapitalize="off" />
@@ -60,6 +61,15 @@ const inputId = `try-${id}`;
   .try-meta {
     margin-left: auto;
     color: var(--muted);
+  }
+
+  .try-timing {
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .try-timing:empty {
+    display: none;
   }
 
   .try-body {

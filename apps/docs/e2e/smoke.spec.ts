@@ -278,3 +278,58 @@ test('the playground shows how long evaluate() took', async ({ page }) => {
   await typeExpression(page, 'nope(1)');
   await expect(meta).not.toHaveText(/ns$/);
 });
+
+test('the live examples show how long evaluate() took', async ({ page }) => {
+  await page.goto('/');
+  // Rendered empty at build time, filled in by the browser.
+  await expect(page.locator('.hero-demo [data-timing]')).toHaveText(
+    /^≈ [\d,]+ ns$/,
+  );
+  await expect(page.locator('.mini [data-timing]')).toHaveText(/^≈ [\d,]+ ns$/);
+
+  await page.goto('/getting-started/');
+  const tryIt = page.locator('exprit-live.try').first();
+  await expect(tryIt.locator('[data-timing]')).toHaveText(/^≈ [\d,]+ ns$/);
+  await expect(tryIt.locator('[data-timing]')).toHaveAttribute(
+    'title',
+    /on average over [\d,]+ runs?/,
+  );
+});
+
+test.describe('playground example in the URL', () => {
+  const select = (page: Page) => page.locator('[data-example-select]');
+
+  test('selecting an example writes it to the URL and survives a reload', async ({
+    page,
+  }) => {
+    await page.goto('/playground/');
+    await select(page).selectOption('clamp');
+    await expect(page).toHaveURL(/\/playground\/\?example=clamp$/);
+
+    await page.reload();
+    await expect(select(page)).toHaveValue('clamp');
+    await expect(page.locator('[data-note]')).not.toHaveText(/Your own/);
+  });
+
+  test('loads an example and its dialect from the URL', async ({ page }) => {
+    await page.goto('/playground/?example=membership&dialect=legacy');
+    await expect(select(page)).toHaveValue('membership');
+    await expect(page.locator('.cm-content')).toHaveText(
+      'role in ["admin", "editor"]',
+    );
+  });
+
+  test('drops the parameter once the expression is edited', async ({
+    page,
+  }) => {
+    await page.goto('/playground/?example=clamp');
+    await typeExpression(page, '1 + 1');
+    await expect(select(page)).toHaveValue('');
+    await expect(page).toHaveURL(/\/playground\/$/);
+  });
+
+  test('ignores an unknown example', async ({ page }) => {
+    await page.goto('/playground/?example=nope');
+    await expect(select(page)).toHaveValue('cart-total');
+  });
+});

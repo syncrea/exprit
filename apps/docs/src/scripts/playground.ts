@@ -27,12 +27,10 @@ import {
 } from '@syncrea/exprit';
 
 import {
-  BUDGET_MS,
-  evaluateSafely,
-  formatNanoseconds,
+  describeTiming,
+  evaluateTimed,
   formatTiming,
   isDialect,
-  measureEvaluation,
   parseSource,
   viewOutcome,
   type ParseOutcome,
@@ -44,6 +42,8 @@ import { flattenAst, highlight, type TokenClass } from '../lib/inspect';
 import {
   presetById,
   PRESETS,
+  readExampleSelection,
+  withExampleSelection,
   type Preset,
   type VariableType,
   type VariableValue,
@@ -223,7 +223,12 @@ class ExpritPlayground extends HTMLElement {
         this.#values.set(name, value),
       );
     } else {
-      this.#loadPreset(PRESETS[0], false);
+      // `?example=<id>[&dialect=legacy]` selects a preset; a share hash wins.
+      const selection = readExampleSelection(window.location.search);
+      if (selection?.dialect) {
+        this.#dialect = selection.dialect;
+      }
+      this.#loadPreset(selection?.preset ?? PRESETS[0], false);
     }
 
     this.#mountEditor();
@@ -348,6 +353,10 @@ class ExpritPlayground extends HTMLElement {
     select?.addEventListener('change', () => {
       const preset = presetById(select.value);
       if (preset) {
+        // A shared state in the hash no longer describes what is shown.
+        const url = new URL(window.location.href);
+        url.hash = '';
+        window.history.replaceState(null, '', url);
         this.#loadPreset(preset);
         this.#update();
       }
@@ -357,6 +366,15 @@ class ExpritPlayground extends HTMLElement {
     copy?.addEventListener('click', () => {
       void this.#copyLink(copy);
     });
+  }
+
+  /** Mirrors the selected preset into `?example=`, so a reload shows it again. */
+  #syncExampleParam(presetId: string | undefined): void {
+    const current = new URL(window.location.href);
+    const next = withExampleSelection(current, presetId, this.#dialect);
+    if (next.href !== current.href) {
+      window.history.replaceState(null, '', next);
+    }
   }
 
   async #copyLink(button: HTMLButtonElement): Promise<void> {
@@ -502,6 +520,7 @@ class ExpritPlayground extends HTMLElement {
     if (select) {
       select.value = isPresetSource ? this.#presetId : '';
     }
+    this.#syncExampleParam(isPresetSource ? this.#presetId : undefined);
     const note = this.querySelector<HTMLElement>('[data-note]');
     if (note) {
       note.textContent = isPresetSource
@@ -685,17 +704,10 @@ class ExpritPlayground extends HTMLElement {
       if (problem) {
         outcome = { kind: 'runtime', message: `Fix the value of ${problem}` };
       } else {
-        const scope = Object.fromEntries(entries);
-        const start = performance.now();
-        outcome = evaluateSafely(parsed.expression, scope);
-        const firstRunMs = performance.now() - start;
-        if (outcome.kind === 'value') {
-          // A slow expression is not run again: its one run is the measurement.
-          timing =
-            firstRunMs >= BUDGET_MS
-              ? { nanosecondsPerRun: firstRunMs * 1e6, runs: 1 }
-              : measureEvaluation(parsed.expression, scope);
-        }
+        ({ outcome, timing } = evaluateTimed(
+          parsed.expression,
+          Object.fromEntries(entries),
+        ));
       }
     }
     this.#renderResult(outcome, parsed, timing);
@@ -723,9 +735,7 @@ class ExpritPlayground extends HTMLElement {
         const nodes = flattenAst(parsed.expression.ast).length;
         const time = timing ? ` · ${formatTiming(timing)}` : '';
         meta.textContent = `${view.type} · ${tokens} tokens · ${nodes} nodes${time}`;
-        meta.title = timing
-          ? `evaluate() took ${formatNanoseconds(timing)} on average over ${timing.runs.toLocaleString('en')} runs in this browser`
-          : '';
+        meta.title = timing ? describeTiming(timing) : '';
       } else if (parsed?.kind === 'syntax') {
         meta.textContent = `syntax error · ExpressionSyntaxError`;
       } else {
