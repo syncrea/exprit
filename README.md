@@ -1,5 +1,7 @@
 # exprit
 
+**[Documentation](https://exprit.syncrea.ch) · [Getting started](https://exprit.syncrea.ch/getting-started/) · [Playground](https://exprit.syncrea.ch/playground/) · [API reference](https://exprit.syncrea.ch/api/)**
+
 A TypeScript-first, functional-first expression parser: a drop-in
 replacement for expr-eval, plus a JavaScript-flavoured dialect. Published
 as [`@syncrea/exprit`](packages/exprit/README.md) and

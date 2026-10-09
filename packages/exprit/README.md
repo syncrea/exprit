@@ -1,5 +1,7 @@
 # @syncrea/exprit
 
+**[Documentation](https://exprit.syncrea.ch) · [Getting started](https://exprit.syncrea.ch/getting-started/) · [Playground](https://exprit.syncrea.ch/playground/) · [API reference](https://exprit.syncrea.ch/api/)**
+
 A TypeScript-first, functional-first expression parser and evaluator. It is a
 **drop-in replacement for [expr-eval](https://github.com/silentmatt/expr-eval)**,
 and it adds a second dialect that reads like JavaScript.
@@ -82,8 +84,10 @@ Everything you know from JavaScript expressions works: `&&`, `||`, `??`,
 `===`, `?:`, `**`, optional chaining, spread, array and object literals, arrow
 functions, template literals, and non-mutating methods on strings, arrays and
 numbers. A frozen `Math`, `Number` and `JSON` are available as well.
-Assignment, statements, `new` and prototype access are not part of it. The
-full reference is `docs/dialects.md` in the exprit repository.
+Assignment, statements, `new` and prototype access are not part of it. See
+[Pick a dialect](https://exprit.syncrea.ch/getting-started/#pick-a-dialect)
+in the docs, or try both in the
+[playground](https://exprit.syncrea.ch/playground/).
 
 ## Migrating from expr-eval
 
@@ -111,8 +115,8 @@ default export work too. Then move to the functional API at your own pace:
 | `compatExpr.toParsedExpression()`     | bridges a `CompatExpression` into the functional API |
 
 The few deliberate differences from expr-eval, all of them security fixes or
-bug fixes, are listed in `docs/differences-from-expr-eval.md` in the exprit
-repository.
+bug fixes, are listed under
+[Deliberate differences](https://exprit.syncrea.ch/getting-started/#deliberate-differences).
 
 ## Low-level building blocks
 

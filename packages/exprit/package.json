@@ -11,6 +11,7 @@
     "formula",
     "sandbox"
   ],
+  "homepage": "https://exprit.syncrea.ch",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

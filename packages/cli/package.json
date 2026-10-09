@@ -9,6 +9,7 @@
     "repl",
     "exprit"
   ],
+  "homepage": "https://exprit.syncrea.ch/getting-started/#command-line",
   "license": "MIT",
   "type": "module",
   "bin": {

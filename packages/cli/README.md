@@ -1,5 +1,7 @@
 # @syncrea/exprit-cli
 
+**[Documentation](https://exprit.syncrea.ch) · [Command line guide](https://exprit.syncrea.ch/getting-started/#command-line)**
+
 The `exprit` command: evaluate expressions from the terminal, pipe them
 through stdin, or explore them in a REPL. Built on
 [@syncrea/exprit](https://www.npmjs.com/package/@syncrea/exprit).
