@@ -80,6 +80,28 @@ const NEW_ARRAY_METHODS: ReadonlySet<string> = new Set([
   'split',
 ]);
 
+/**
+ * Keys JavaScript calls implicitly during type conversion, with the object as
+ * `this`. An expression-built object must not carry a function under one of
+ * them, or coercing it (`${o}`, `o * 1`, `JSON.stringify(o)`) would call a
+ * host function with a receiver the expression chose (F4).
+ */
+const COERCION_HOOKS: ReadonlySet<string> = new Set([
+  'toString',
+  'valueOf',
+  'toJSON',
+  'toLocaleString',
+]);
+
+/** Throws if a function is placed under a coercion-hook key of a built object. */
+export const assertNoCoercionHook = (name: string, value: unknown): void => {
+  if (typeof value === 'function' && COERCION_HOOKS.has(name)) {
+    throw new ExpressionSecurityError(
+      `a function cannot be stored under "${name}"`,
+    );
+  }
+};
+
 export const assertAllowedName = (name: string): void => {
   if (isBlockedName(name)) {
     throw new ExpressionSecurityError(`access to "${name}" is not allowed`);
@@ -112,8 +134,12 @@ const toLength = (value: unknown): number => {
   return Number.isNaN(n) ? 0 : n;
 };
 
+/** String conversion that masks functions, applied once per argument. */
+const stringifyArg = (value: unknown): string =>
+  typeof value === 'function' ? '[Function]' : String(value);
+
 const stringLengthOf = (value: unknown): number =>
-  typeof value === 'string' ? value.length : String(value).length;
+  typeof value === 'string' ? value.length : stringifyArg(value).length;
 
 /**
  * Checks, before the native method allocates, that a size-amplifying string or
@@ -141,24 +167,51 @@ const guardAmplifyingMethod = (
       case 'padStart':
       case 'padEnd':
         return (...args) => {
-          assertStringLength(Math.max(length, toLength(args[0])), limits);
-          return (receiver[name] as (...a: unknown[]) => string)(...args);
+          // Convert each argument once and pass the primitive on, so a
+          // valueOf/toString hook cannot report one size to the guard and
+          // another to the native method.
+          const target = toLength(args[0]);
+          const fill =
+            args[1] === undefined ? undefined : stringifyArg(args[1]);
+          assertStringLength(Math.max(length, target), limits);
+          return name === 'padStart'
+            ? receiver.padStart(target, fill)
+            : receiver.padEnd(target, fill);
         };
       case 'concat':
         return (...args) => {
-          const total = args.reduce<number>(
-            (sum, arg) => sum + stringLengthOf(arg),
-            length,
-          );
+          const parts = args.map(stringifyArg);
+          const total = parts.reduce((sum, part) => sum + part.length, length);
           assertStringLength(total, limits);
-          return receiver.concat(...(args as string[]));
+          return receiver.concat(...parts);
         };
       case 'split':
         return (...args) => {
-          const requested =
-            args[1] === undefined ? length + 1 : toLength(args[1]);
-          assertArrayLength(Math.min(requested, length + 1), limits);
-          return receiver.split(args[0] as string, args[1] as number);
+          const separator =
+            args[0] === undefined ? undefined : stringifyArg(args[0]);
+          const limit = args[1] === undefined ? undefined : toLength(args[1]);
+          // An empty separator yields one element per character; any other
+          // separator at most one more element than that.
+          const upper = separator === '' ? length : length + 1;
+          assertArrayLength(
+            limit === undefined ? upper : Math.min(limit, upper),
+            limits,
+          );
+          return receiver.split(separator as string, limit);
+        };
+      case 'normalize':
+      case 'toUpperCase':
+      case 'toLowerCase':
+      case 'toLocaleUpperCase':
+      case 'toLocaleLowerCase':
+        // Growth is bounded by a small constant factor (at most 18x for NFKD),
+        // so a check on the result keeps it within the limit.
+        return (...args) => {
+          const result = (receiver[name] as (...a: unknown[]) => string)(
+            ...args.map(stringifyArg),
+          );
+          assertStringLength(result.length, limits);
+          return result;
         };
       case 'replace':
       case 'replaceAll':
@@ -215,14 +268,14 @@ const guardAmplifyingMethod = (
         };
       case 'join':
         return (...args) => {
-          const sep = args[0] === undefined ? ',' : String(args[0]);
+          const sep = args[0] === undefined ? ',' : stringifyArg(args[0]);
           let total = sep.length * Math.max(0, length - 1);
           for (const item of receiver) {
             total +=
               item === null || item === undefined ? 0 : stringLengthOf(item);
             assertStringLength(total, limits);
           }
-          return receiver.join(args[0] as string);
+          return receiver.join(sep);
         };
     }
   }

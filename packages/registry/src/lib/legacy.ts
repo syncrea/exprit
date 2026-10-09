@@ -156,21 +156,54 @@ const guardedConcat = (
     return (concat as (x: unknown, y: unknown) => unknown)(a, b);
   }) as ExpressionFunction;
 
+/**
+ * expr-eval's `join(sep, array)`, guarded so the joined string cannot exceed
+ * the limit. The size is computed from the existing parts before joining.
+ */
+const guardedJoin = (limits: Limits): ExpressionFunction =>
+  ((sep: unknown, array: unknown): unknown => {
+    if (Array.isArray(array)) {
+      const separator = String(sep);
+      let total = separator.length * Math.max(0, array.length - 1);
+      for (const item of array) {
+        total += item === null || item === undefined ? 0 : String(item).length;
+        assertStringLength(total, limits);
+      }
+      return fn.arrayJoin(separator, array);
+    }
+    return fn.arrayJoin(sep, array);
+  }) as ExpressionFunction;
+
+/** Swaps the built-in `join` for its guarded version; a host override is kept. */
+const withGuardedFunctions = (
+  tables: LegacyTables,
+  limits: Limits,
+): LegacyTables =>
+  tables.functions['join'] === fn.arrayJoin
+    ? {
+        ...tables,
+        functions: { ...tables.functions, join: guardedJoin(limits) },
+      }
+    : tables;
+
 export const createLegacyRegistry = (
-  tables: LegacyTables = createLegacyTables(),
+  rawTables: LegacyTables = createLegacyTables(),
   isOperatorEnabled: (operator: string) => boolean = () => true,
   limits: Limits = resolveLimits(),
-): Registry => ({
-  unaryOps: tables.unaryOps,
-  binaryOps: Object.hasOwn(tables.binaryOps, '||')
-    ? {
-        ...tables.binaryOps,
-        '||': guardedConcat(tables.binaryOps['||'], limits),
-      }
-    : tables.binaryOps,
-  functions: tables.functions,
-  consts: tables.consts,
-  methods: DEFAULT_SAFE_METHODS,
-  resolveIdentifier: createLegacyResolver(tables, isOperatorEnabled),
-  limits,
-});
+): Registry => {
+  const tables = withGuardedFunctions(rawTables, limits);
+  return {
+    unaryOps: tables.unaryOps,
+    binaryOps: Object.hasOwn(tables.binaryOps, '||')
+      ? {
+          ...tables.binaryOps,
+          '||': guardedConcat(tables.binaryOps['||'], limits),
+        }
+      : tables.binaryOps,
+    functions: tables.functions,
+    consts: tables.consts,
+    methods: DEFAULT_SAFE_METHODS,
+    resolveIdentifier: createLegacyResolver(tables, isOperatorEnabled),
+    limits,
+  };
+};

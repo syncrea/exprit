@@ -433,7 +433,7 @@ export const parseModern = (
     optional: boolean,
     at: number,
   ): ExpressionNode => {
-    requireMemberAccess(at);
+    // `f?.()` is a plain optional call, not member access.
     if (accept('(')) {
       return markChain(
         { type: 'Call', callee: left, arguments: parseElements(')'), optional },
@@ -441,7 +441,9 @@ export const parseModern = (
         optional,
       );
     }
+    requireMemberAccess(at);
     if (accept('[')) {
+      requireOperator('[', at);
       const indexExpression = parse(0);
       expect(']');
       return markChain(

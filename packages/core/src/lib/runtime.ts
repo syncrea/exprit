@@ -5,7 +5,7 @@ import {
   assertStringLength,
   ExpressionLimitError,
 } from './limits';
-import { assertAllowedName } from './member-access';
+import { assertAllowedName, assertNoCoercionHook } from './member-access';
 import type { Registry, Scope } from './registry';
 
 export { markOwned, receiverFor } from './member-access';
@@ -143,6 +143,7 @@ export const assignProperty = (
 ): void => {
   const name = String(key);
   assertAllowedName(name);
+  assertNoCoercionHook(name, value);
   target[name] = value;
 };
 

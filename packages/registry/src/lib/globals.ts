@@ -1,4 +1,10 @@
-import { markOwnedIfContainer, stringifyValue } from '@exprit/core';
+import {
+  assertAllowedName,
+  assertNoCoercionHook,
+  markOwned,
+  markOwnedIfContainer,
+  stringifyValue,
+} from '@exprit/core';
 
 /** Wraps a container-returning global so its result is evaluator-owned (F4). */
 const owning =
@@ -58,9 +64,21 @@ export const MODERN_GLOBALS: Readonly<Record<string, unknown>> = Object.freeze({
   Object: Object.freeze({
     keys: owning((value: object) => Object.keys(value)),
     values: owning((value: object) => Object.values(value)),
-    entries: owning((value: object) => Object.entries(value)),
-    fromEntries: owning((entries: Iterable<readonly [PropertyKey, unknown]>) =>
-      Object.fromEntries(entries),
+    // Mark the inner [key, value] pairs too, not just the outer array.
+    entries: owning((value: object) =>
+      Object.entries(value).map((pair) => markOwned(pair)),
+    ),
+    fromEntries: owning(
+      (entries: Iterable<readonly [PropertyKey, unknown]>) => {
+        const result: Record<string, unknown> = {};
+        for (const [key, value] of entries) {
+          const name = String(key);
+          assertAllowedName(name);
+          assertNoCoercionHook(name, value);
+          result[name] = value;
+        }
+        return result;
+      },
     ),
   }),
   JSON: Object.freeze({

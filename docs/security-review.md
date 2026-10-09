@@ -561,3 +561,42 @@ against the sources and the built bundle.
 - **F10 (docs, `c0ffbce`).** `docs/architecture.md` now states that the modern
   global namespaces are frozen container copies whose functions are the genuine
   built-ins, which an expression can neither replace nor mutate. No code change.
+
+### Follow-ups from the post-fix sandbox review
+
+A second adversarial review of the fixes found more gaps. These were fixed:
+`Object.fromEntries` as a receiver carrier; double conversion of guard arguments
+(a `valueOf` hook could report a small size to the guard and a large one to the
+native call) in `padStart`/`padEnd`/`concat`/`join`/`split`; functions stored
+under coercion-hook keys (`toString`, `valueOf`, `toJSON`, `toLocaleString`) of
+built objects, which JavaScript calls implicitly with the object as `this`;
+unmarked `Object.entries` pairs; unguarded `normalize`/case conversion and
+legacy `join`; a `split("")` off-by-one that rejected a legitimate maximum-size
+split; `a?.[i]` not gated by `operators.array`; and a false positive that
+rejected `f?.()` under `allowMemberAccess: false`.
+
+**Still open (known residuals):**
+
+- **No total allocation budget.** Limits apply per value. Many values each
+  just under the limit (`xs.map(() => "a".repeat(9999999).split(""))`), or
+  `Object.entries`/`Object.keys` of a 10M-element array (10M pair arrays or
+  index strings), can still exhaust the heap. `JSON.stringify` has no size
+  guard and can expand a value with shared references. These need a cumulative
+  allocation budget, and they are why the README requires running untrusted
+  input in a worker or process with a memory cap.
+- **Some sizes are checked only after the string is built:** template and `+`
+  with array operands, legacy `||` with arrays, `replace` with a function or
+  `` $` `` replacement, and nested arrays inside `join`/`concat`. In testing these
+  failed with a catchable error, not a crash.
+- **Function source through arrays (F5):** `` `${[f]}` ``, `[f].join()`,
+  `String([f])` and legacy `join(",", [f])` still use the native
+  `Array.prototype.join`, which prints the function source. Only a function at
+  the top level is masked.
+- **Runtime recursion** (`f(n) = f(n-1)`, `(f => f(f))(f => f(f))`) still ends in
+  a catchable `RangeError`, not an `ExpressionLimitError`. A call-depth limit
+  would close this.
+- **Ownership marking is process-wide.** An object returned by `evaluate`,
+  given a method by the host and passed back in, is still treated as
+  expression-built, so that method runs with `this` undefined. This is safe,
+  but surprising.
+- `operators.add: false` does not disable template literals or `.concat`.

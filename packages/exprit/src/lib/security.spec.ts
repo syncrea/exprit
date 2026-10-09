@@ -361,3 +361,105 @@ describe('does not disclose host function source (F5)', () => {
     expect(evaluate(parse('f || "!"'), { f: secretFn })).toBe('[Function]!');
   });
 });
+
+// Follow-ups from the sandbox review of the fixes above.
+describe('sandbox review follow-ups', () => {
+  const modern = createEnvironment({ dialect: 'modern' });
+  const both = (
+    source: string,
+    vars: Record<string, unknown> = {},
+    env = modern,
+  ): unknown[] => [
+    evaluate(parse(source, env), vars),
+    compile(parse(source, env))(vars),
+  ];
+
+  it('converts guard arguments once, so a valueOf hook cannot lie to the guard', () => {
+    let calls = 0;
+    const flip = { valueOf: (): number => (calls++ === 0 ? 1 : 50_000_000) };
+    for (const run of [
+      (): unknown =>
+        evaluate(parse('"".padStart(n, "a")', modern), { n: flip }),
+      (): unknown => compile(parse('"".padStart(n, "a")', modern))({ n: flip }),
+    ]) {
+      calls = 0;
+      expect((run() as string).length).toBeLessThanOrEqual(10_000_000);
+    }
+  });
+
+  it('splits a maximum-length string into characters', () => {
+    const env = createEnvironment({
+      dialect: 'modern',
+      limits: { maxStringLength: 100, maxArrayLength: 100 },
+    });
+    expect(both('"a".repeat(100).split("")', {}, env)).toEqual([
+      new Array(100).fill('a'),
+      new Array(100).fill('a'),
+    ]);
+  });
+
+  it('bounds normalize and case conversion', () => {
+    expect(() =>
+      evaluate(parse('"ﷺ".repeat(10000000).normalize("NFKD")', modern)),
+    ).toThrow(ExpressionLimitError);
+  });
+
+  it('bounds the legacy join function', () => {
+    const env = createEnvironment({ limits: { maxStringLength: 100 } });
+    expect(() =>
+      evaluate(parse('join(",", xs)', env), { xs: new Array(60).fill('ab') }),
+    ).toThrow(ExpressionLimitError);
+    expect(evaluate(parse('join(",", xs)', env), { xs: ['a', 'b'] })).toBe(
+      'a,b',
+    );
+  });
+
+  it('rejects functions under coercion-hook keys of built objects', () => {
+    const list: unknown[] = [];
+    const host = {
+      add(this: { items?: unknown[] } | undefined, value: unknown): void {
+        this?.items?.push(value);
+      },
+    };
+    for (const source of [
+      '`${ {toString: host.add, items: list} }`',
+      '({ valueOf: host.add, items: list }) * 1',
+      'Object.fromEntries([["toString", host.add]])',
+    ]) {
+      expect(() => evaluate(parse(source, modern), { host, list })).toThrow(
+        /cannot be stored/,
+      );
+      expect(() => compile(parse(source, modern))({ host, list })).toThrow(
+        /cannot be stored/,
+      );
+    }
+    expect(list).toEqual([]);
+  });
+
+  it('calls a function read from an Object.entries pair with no receiver', () => {
+    const host = {
+      peek(this: unknown): string {
+        return this === undefined ? 'no receiver' : 'receiver';
+      },
+    };
+    expect(both('Object.entries({ k: host.peek })[0][1]()', { host })).toEqual([
+      'no receiver',
+      'no receiver',
+    ]);
+  });
+
+  it('gates ?.[ on the array option and allows f?.() without member access', () => {
+    const noArray = createEnvironment({
+      dialect: 'modern',
+      operators: { array: false },
+    });
+    expect(() => parse('a?.[0]', noArray)).toThrow(/disabled/);
+    const noMembers = createEnvironment({
+      dialect: 'modern',
+      allowMemberAccess: false,
+    });
+    expect(
+      evaluate(parse('g?.(1)', noMembers), { g: (n: number) => n + 1 }),
+    ).toBe(2);
+  });
+});
