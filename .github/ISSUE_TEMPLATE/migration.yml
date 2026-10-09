@@ -1,0 +1,25 @@
+name: Migrating from expr-eval
+description: Something that worked with expr-eval or expr-eval-fork behaves differently in exprit.
+labels: [migration]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        exprit passes expr-eval's own test suite, and the deliberate differences are listed in
+        [differences from expr-eval](https://github.com/syncrea/exprit/blob/main/docs/differences-from-expr-eval.md).
+        If your case isn't there, please tell us.
+  - type: input
+    id: from
+    attributes:
+      label: Migrating from
+      placeholder: expr-eval 2.0.2 / expr-eval-fork 3.0.3
+    validations:
+      required: true
+  - type: textarea
+    id: case
+    attributes:
+      label: What differs
+      description: The expression, the variables, and what each library returns.
+      render: ts
+    validations:
+      required: true

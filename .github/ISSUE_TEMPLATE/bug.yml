@@ -1,0 +1,45 @@
+name: Bug report
+description: An expression evaluates wrongly, throws unexpectedly, or the API misbehaves.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: exprit version
+      placeholder: '0.7.2'
+    validations:
+      required: true
+  - type: dropdown
+    id: dialect
+    attributes:
+      label: Dialect
+      options:
+        - legacy (expr-eval syntax)
+        - modern (JavaScript syntax)
+        - both
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: The smallest code that shows the problem, including the expression and the variables.
+      render: ts
+      placeholder: |
+        import { createEnvironment, evaluate, parse } from '@syncrea/exprit';
+
+        const env = createEnvironment({ dialect: 'modern' });
+        evaluate(parse('...', env), { /* variables */ });
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual result
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime
+      placeholder: Node 22.12 / Chrome 140 / Bun 1.3

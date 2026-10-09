@@ -71,6 +71,8 @@ It deploys to GitHub Pages from `main` (`.github/workflows/docs.yml`). See
 - [Differences from expr-eval](docs/differences-from-expr-eval.md)
 - [TypeScript guidelines](docs/typescript.md)
 - [AGENTS.md](AGENTS.md): working rules and playbooks for AI agents (and humans)
+- [CONTRIBUTING.md](CONTRIBUTING.md): setup, pull requests and releases
+- [SECURITY.md](SECURITY.md): how to report a vulnerability privately
 
 ## License
 

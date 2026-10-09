@@ -1,0 +1,20 @@
+name: Feature request
+description: A function, operator, option or API you would like exprit to have.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: What are you building, and what would you write if this existed?
+    validations:
+      required: true
+  - type: dropdown
+    id: dialect
+    attributes:
+      label: Dialect
+      options:
+        - legacy (expr-eval syntax)
+        - modern (JavaScript syntax)
+        - both
+        - not dialect-specific
