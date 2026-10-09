@@ -15,7 +15,11 @@ import {
 } from './environment';
 import { isOperatorEnabled, type Dialect, type ParserOptions } from './options';
 
-/** A value an expression can work with. Mirrors expr-eval's `Value` type. */
+/**
+ * A value an expression can work with. Mirrors expr-eval's `Value` type.
+ *
+ * @group expr-eval compatibility
+ */
 export type Value =
   | number
   | string
@@ -31,11 +35,18 @@ export type Value =
  * not `unknown`, because expr-eval's typings return `any`/`number`; code
  * written against expr-eval must keep compiling after switching the import.
  * The functional API returns `unknown`.
+ *
+ * @group expr-eval compatibility
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- drop-in compatibility, see above
 export type EvaluationResult = any;
 
-/** Variables for `CompatExpression#evaluate`. Legacy assignments write into this object, as in expr-eval. */
+/**
+ * Variables for `CompatExpression#evaluate`. Legacy assignments write into
+ * this object, as in expr-eval.
+ *
+ * @group expr-eval compatibility
+ */
 export type Values = Record<string, unknown>;
 
 const normalize = (value: unknown): unknown => (value === 0 ? 0 : value);
@@ -44,6 +55,8 @@ const normalize = (value: unknown): unknown => (value === 0 ? 0 : value);
  * expr-eval's `Expression`, kept for drop-in compatibility. Each method
  * delegates to the functional API (`evaluate`, `simplify`, `print`, ...).
  * New code should use those functions directly.
+ *
+ * @group expr-eval compatibility
  */
 export class CompatExpression {
   /** The parsed syntax tree, shared by both dialects. */
@@ -78,10 +91,12 @@ export class CompatExpression {
     return (values: Values = {}) => normalize(run(values));
   }
 
+  /** Folds constants and inlines `values`; see the functional `simplify`. */
   simplify(values: Values = {}): CompatExpression {
     return this.#wrap(api.simplify(this.toParsedExpression(), values));
   }
 
+  /** Replaces a variable with another expression; see the functional `substitute`. */
   substitute(
     variable: string,
     expression: CompatExpression | string | number,
@@ -95,10 +110,12 @@ export class CompatExpression {
     );
   }
 
+  /** Every identifier the expression references; see the functional `symbols`. */
   symbols(options: SymbolOptions = {}): string[] {
     return [...api.symbols(this.toParsedExpression(), options)];
   }
 
+  /** The identifiers the expression expects as variables; see the functional `variables`. */
   variables(options: SymbolOptions = {}): string[] {
     return [...api.variables(this.toParsedExpression(), options)];
   }
@@ -121,6 +138,7 @@ export class CompatExpression {
     return api.toFunction(this.toParsedExpression(), names, values);
   }
 
+  /** Prints the expression in expr-eval's `toString()` format; see the functional `print`. */
   toString(): string {
     return api.print(this.toParsedExpression());
   }
@@ -143,14 +161,23 @@ export class CompatExpression {
  * parser.functions.double = (n: number) => n * 2;
  * parser.evaluate('double(x) + 1', { x: 3 }); // 7
  * ```
+ *
+ * @group expr-eval compatibility
  */
 export class CompatParser {
+  /** The options the parser was created with. */
   readonly options: ParserOptions;
+  /** The dialect the parser accepts; `legacy` unless set in the options. */
   readonly dialect: Dialect;
+  /** Prefix operators (`sin`, `not`, ...). Mutable, as in expr-eval. */
   unaryOps: Record<string, ExpressionFunction>;
+  /** Infix operators (`+`, `and`, ...). Mutable, as in expr-eval. */
   binaryOps: Record<string, ExpressionFunction>;
+  /** The conditional operator. Mutable, as in expr-eval. */
   ternaryOps: Record<string, ExpressionFunction>;
+  /** Functions callable from expressions. Mutable: `parser.functions.f = fn` works. */
   functions: Record<string, ExpressionFunction>;
+  /** Constants such as `PI`. Mutable, as in expr-eval. */
   consts: Record<string, unknown>;
 
   constructor(options: ParserOptions = {}) {
@@ -178,6 +205,11 @@ export class CompatParser {
     });
   }
 
+  /**
+   * Parses an expression with the parser's current tables.
+   *
+   * @throws ExpressionSyntaxError when the expression is malformed
+   */
   parse(expression: string): CompatExpression {
     return new CompatExpression(
       api.parse(expression, this.toEnvironment()).ast,
@@ -185,10 +217,12 @@ export class CompatParser {
     );
   }
 
+  /** Parses and evaluates in one step. Legacy assignments write into `values`. */
   evaluate(expression: string, values?: Values): EvaluationResult {
     return this.parse(expression).evaluate(values);
   }
 
+  /** Whether an operator is switched on in this parser's `operators` options. */
   isOperatorEnabled(operator: string): boolean {
     return isOperatorEnabled(this.options.operators, operator);
   }

@@ -1,3 +1,16 @@
+/**
+ * `@syncrea/exprit`: a TypeScript-first, functional-first expression parser
+ * and evaluator. A drop-in replacement for expr-eval, plus a second dialect
+ * that reads like JavaScript.
+ *
+ * Build a frozen `Environment` with `createEnvironment`, `parse` a string
+ * into a frozen `ParsedExpression`, then `evaluate` it with your variables.
+ * The expr-eval classes (`CompatParser`, `CompatExpression` and the
+ * deprecated `Parser`/`Expression` aliases) are a thin layer over the same
+ * functions.
+ *
+ * @packageDocumentation
+ */
 import { CompatExpression, CompatParser } from './lib/compat-parser';
 
 /*
@@ -52,23 +65,37 @@ export {
  *
  * @deprecated Use the functional API (`createEnvironment`, `parse`,
  * `evaluate`), or `CompatParser` while migrating.
+ *
+ * @group expr-eval compatibility
  */
 export const Parser = CompatParser;
-/** @deprecated expr-eval compatibility alias; see `Parser`. */
+/**
+ * @deprecated expr-eval compatibility alias; see `Parser`.
+ *
+ * @group expr-eval compatibility
+ */
 export type Parser = CompatParser;
 
 /**
  * expr-eval's name for `CompatExpression`.
  *
  * @deprecated Use `ParsedExpression` with the functional API.
+ *
+ * @group expr-eval compatibility
  */
 export const Expression = CompatExpression;
-/** @deprecated expr-eval compatibility alias; see `Expression`. */
+/**
+ * @deprecated expr-eval compatibility alias; see `Expression`.
+ *
+ * @group expr-eval compatibility
+ */
 export type Expression = CompatExpression;
 
 /**
  * expr-eval also exposes `{ Parser, Expression }` as its default export, so
  * `import exprEval from 'expr-eval'` keeps working after switching packages.
+ *
+ * @group expr-eval compatibility
  */
 // eslint-disable-next-line no-restricted-syntax -- required for drop-in compatibility
 export default { Parser: CompatParser, Expression: CompatExpression };

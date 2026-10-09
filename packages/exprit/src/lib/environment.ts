@@ -18,8 +18,12 @@ type ValueTable = Readonly<Record<string, unknown>>;
  * Everything that shapes how expressions are parsed and evaluated: the
  * dialect, the operator, function and constant tables, and the operator
  * switches. An environment is frozen; derive a new one with `extend`.
+ * Create one with `createEnvironment`.
+ *
+ * @group Environments
  */
 export interface Environment {
+  /** Which syntax `parse` accepts: `legacy` (expr-eval) or `modern` (JavaScript). */
   readonly dialect: Dialect;
   /** Legacy dialect only: prefix operators such as `sin x` or `not x`. */
   readonly unaryOps: FunctionTable;
@@ -37,6 +41,12 @@ export interface Environment {
   readonly allowMemberAccess: boolean;
 }
 
+/**
+ * Options for `createEnvironment` and `extend`. Every field is optional;
+ * tables are merged over the built-ins (or over the base environment).
+ *
+ * @group Environments
+ */
 export interface EnvironmentOptions {
   /** `legacy` (expr-eval syntax, the default) or `modern` (JavaScript syntax). */
   readonly dialect?: Dialect;
@@ -79,12 +89,19 @@ export const environmentFromTables = (
 
 /**
  * Derives a new environment. Tables and operator switches are merged over
- * the base; `dialect` and `allowMemberAccess` replace it when given.
+ * the base; `dialect` and `allowMemberAccess` replace it when given. The
+ * base environment is not modified.
+ *
+ * @param base - The environment to start from
+ * @param options - What to add or change
+ * @returns A new frozen environment
  *
  * @example
  * ```typescript
  * const withTau = extend(env, { consts: { TAU: 2 * Math.PI } });
  * ```
+ *
+ * @group Environments
  */
 export const extend = (
   base: Environment,
@@ -105,6 +122,9 @@ export const extend = (
  * Creates an environment from expr-eval's built-in operators, functions and
  * constants, plus the given options.
  *
+ * @param options - Dialect, extra functions and constants, operator switches
+ * @returns A frozen environment to pass to `parse`
+ *
  * @example
  * ```typescript
  * const env = createEnvironment({
@@ -112,6 +132,8 @@ export const extend = (
  *   functions: { double: (n: number) => n * 2 },
  * });
  * ```
+ *
+ * @group Environments
  */
 export const createEnvironment = (
   options: EnvironmentOptions = {},
@@ -121,7 +143,12 @@ export const createEnvironment = (
     options,
   );
 
-/** The default environment: legacy dialect, built-ins only. */
+/**
+ * The default environment: legacy dialect, built-ins only. `parse` uses it
+ * when no environment is given.
+ *
+ * @group Environments
+ */
 export const DEFAULT_ENVIRONMENT: Environment = createEnvironment();
 
 /** Whether an operator is switched on in the environment. */

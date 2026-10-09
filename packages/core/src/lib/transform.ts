@@ -186,6 +186,7 @@ export const substitute = (
   return visit(node, new Set());
 };
 
+/** Options for `symbols` and `variables`. */
 export interface SymbolOptions {
   /** Report `a.b.c` member chains as one dotted name instead of just `a`. */
   readonly withMembers?: boolean;

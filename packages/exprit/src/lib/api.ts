@@ -21,16 +21,31 @@ import {
 /**
  * A parsed expression: its syntax tree and the environment it was parsed in.
  * It is a frozen value; every function that "changes" it returns a new one.
+ * Parse once, then evaluate it as often as you like.
+ *
+ * @group Parse and evaluate
  */
 export interface ParsedExpression {
+  /** The syntax tree, shared by both dialects. Deeply frozen. */
   readonly ast: ExpressionNode;
+  /** The environment the expression was parsed in; evaluation uses it too. */
   readonly env: Environment;
 }
 
-/** Variables an expression can read. They are never modified. */
+/**
+ * Variables an expression can read. They are never modified.
+ *
+ * @group Parse and evaluate
+ */
 export type Variables = Readonly<Record<string, unknown>>;
 
+/**
+ * What `evaluateWithState` returns: the result and the variables afterwards.
+ *
+ * @group Parse and evaluate
+ */
 export interface EvaluationState {
+  /** The result of the expression. */
   readonly value: unknown;
   /** The variables after evaluation, including legacy assignments. A new, frozen object. */
   readonly variables: Variables;
@@ -65,13 +80,20 @@ const normalize = (env: Environment, value: unknown): unknown =>
  *
  * @param source - The expression text
  * @param env - Dialect, functions and options; defaults to the legacy dialect with built-ins
- * @throws ExpressionSyntaxError when the expression is malformed
+ * @returns A frozen `ParsedExpression`, ready to evaluate any number of times
+ * @throws ExpressionSyntaxError when the expression is malformed; its `line`,
+ * `column` and `offset` point at the problem
  *
  * @example
  * ```typescript
  * const expr = parse('2 * x + 1');
  * evaluate(expr, { x: 3 }); // 7
+ *
+ * const modern = createEnvironment({ dialect: 'modern' });
+ * parse('user?.name ?? "anonymous"', modern);
  * ```
+ *
+ * @group Parse and evaluate
  */
 export const parse = (
   source: string,
@@ -96,11 +118,17 @@ export const parse = (
  * assignments (`x = 1`) and function definitions (`f(x) = ...`) end up in the
  * returned variables; the input is never modified.
  *
+ * @param expression - A parsed expression
+ * @param variables - The values the expression may read
+ * @returns The result and the variables afterwards, as a new frozen object
+ *
  * @example
  * ```typescript
  * const { value, variables } = evaluateWithState(parse('x = 2; x * 21'), {});
  * // value: 42, variables: { x: 2 }
  * ```
+ *
+ * @group Parse and evaluate
  */
 export const evaluateWithState = (
   expression: ParsedExpression,
@@ -117,10 +145,20 @@ export const evaluateWithState = (
 /**
  * Evaluates an expression. The variables are only read, never modified.
  *
+ * @param expression - A parsed expression
+ * @param variables - The values the expression may read. Only their own
+ * properties are visible to the expression.
+ * @returns The result of the expression
+ * @throws Error when the expression reads a name that is not defined
+ * @throws ExpressionSecurityError when it reaches for a blocked name such as
+ * `constructor` or `__proto__`
+ *
  * @example
  * ```typescript
  * evaluate(parse('a + b', createEnvironment({ dialect: 'modern' })), { a: 1, b: 2 }); // 3
  * ```
+ *
+ * @group Parse and evaluate
  */
 export const evaluate = (
   expression: ParsedExpression,
@@ -132,11 +170,16 @@ export const evaluate = (
  * walked once, now; each call evaluates the prepared closures. Results match
  * `evaluate`, and the variables passed in are never modified.
  *
+ * @param expression - A parsed expression
+ * @returns A function that evaluates the expression with the given variables
+ *
  * @example
  * ```typescript
  * const price = compile(parse('base * (1 + vat)'));
  * price({ base: 200, vat: 0.25 }); // 250
  * ```
+ *
+ * @group Parse and evaluate
  */
 export const compile = (
   expression: ParsedExpression,
@@ -148,10 +191,16 @@ export const compile = (
 /**
  * Folds constant sub-expressions and inlines the given values.
  *
+ * @param expression - A parsed expression; it is not modified
+ * @param values - Values that are already known and can be inlined
+ * @returns A new, simplified expression in the same environment
+ *
  * @example
  * ```typescript
  * print(simplify(parse('x * (y + 1)'), { y: 2 })); // '(x * 3)'
  * ```
+ *
+ * @group Transform and inspect
  */
 export const simplify = (
   expression: ParsedExpression,
@@ -166,10 +215,17 @@ export const simplify = (
  * Replaces a variable with another expression. A string or number replacement
  * is parsed in the expression's environment.
  *
+ * @param expression - A parsed expression; it is not modified
+ * @param variable - The variable name to replace
+ * @param replacement - The expression, or source text, to put in its place
+ * @returns A new expression in the same environment
+ *
  * @example
  * ```typescript
  * print(substitute(parse('x ^ 2'), 'x', 'a + 1')); // '((a + 1) ^ 2)'
  * ```
+ *
+ * @group Transform and inspect
  */
 export const substitute = (
   expression: ParsedExpression,
@@ -183,7 +239,21 @@ export const substitute = (
   return create(substituteAst(expression.ast, variable, node), expression.env);
 };
 
-/** Every identifier the expression references, functions included, in expr-eval's order. */
+/**
+ * Every identifier the expression references, functions included, in
+ * expr-eval's order.
+ *
+ * @param expression - A parsed expression
+ * @param options - `withMembers: true` reports member chains such as `user.age` as one name
+ * @returns The referenced names, without duplicates
+ *
+ * @example
+ * ```typescript
+ * symbols(parse('max(a, b.c)')); // ['max', 'a', 'b']
+ * ```
+ *
+ * @group Transform and inspect
+ */
 export const symbols = (
   expression: ParsedExpression,
   options: SymbolOptions = {},
@@ -196,6 +266,19 @@ const MODERN_GLOBAL_NAMES: ReadonlySet<string> = new Set(
 /**
  * The identifiers the expression expects as variables: its symbols minus
  * functions and, in the modern dialect, constants and globals such as `Math`.
+ * Use it to ask for exactly the inputs a formula needs.
+ *
+ * @param expression - A parsed expression
+ * @param options - `withMembers: true` reports member chains such as `user.age` as one name
+ * @returns The variable names, without duplicates
+ *
+ * @example
+ * ```typescript
+ * variables(parse('user.age >= limit')); // ['user', 'limit']
+ * variables(parse('user.age >= limit'), { withMembers: true }); // ['user.age', 'limit']
+ * ```
+ *
+ * @group Transform and inspect
  */
 export const variables = (
   expression: ParsedExpression,
@@ -217,6 +300,16 @@ export const variables = (
 /**
  * Prints an expression in its dialect. Legacy output matches expr-eval's
  * `toString()` exactly; modern output is fully parenthesised JavaScript.
+ *
+ * @param expression - A parsed expression
+ * @returns The expression as source text in its dialect
+ *
+ * @example
+ * ```typescript
+ * print(parse('2 + price * qty')); // '(2 + (price * qty))'
+ * ```
+ *
+ * @group Transform and inspect
  */
 export const print = (expression: ParsedExpression): string =>
   expression.env.dialect === 'legacy'
@@ -228,11 +321,18 @@ export const print = (expression: ParsedExpression): string =>
  * inlining `values`. Nothing is code-generated: the function evaluates the
  * simplified syntax tree.
  *
+ * @param expression - A parsed expression
+ * @param params - The variable names that become the function's parameters, in order
+ * @param values - Values to inline before the function is created
+ * @returns A function that takes the parameters positionally
+ *
  * @example
  * ```typescript
  * const area = toFunction(parse('w * h'), ['w', 'h']);
  * area(2, 3); // 6
  * ```
+ *
+ * @group Transform and inspect
  */
 export const toFunction = (
   expression: ParsedExpression,

@@ -1,6 +1,23 @@
+/**
+ * The two syntaxes exprit understands. `legacy` is expr-eval's syntax
+ * (`and`, `or`, `^` for power); `modern` is the expression grammar of
+ * JavaScript (`&&`, `??`, `**`, arrow functions, optional chaining).
+ *
+ * @group Environments
+ */
 export type Dialect = 'legacy' | 'modern';
 
-/** expr-eval's operator switches. Every operator is enabled unless set to `false`. */
+/**
+ * expr-eval's operator switches for the legacy dialect. Every operator is
+ * enabled unless set to `false`.
+ *
+ * @example
+ * ```typescript
+ * createEnvironment({ operators: { assignment: false, fndef: false } });
+ * ```
+ *
+ * @group Environments
+ */
 export interface OperatorOptions {
   readonly add?: boolean;
   readonly comparison?: boolean;
@@ -52,6 +69,12 @@ export interface OperatorOptions {
   readonly [operator: string]: boolean | undefined;
 }
 
+/**
+ * Options for `new CompatParser(options)`, the same shape as expr-eval's
+ * `Parser` options plus `dialect`.
+ *
+ * @group expr-eval compatibility
+ */
 export interface ParserOptions {
   /**
    * Which syntax to accept. `legacy` (the default) is expr-eval's syntax;

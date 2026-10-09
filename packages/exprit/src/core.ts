@@ -2,6 +2,15 @@
  * `@syncrea/exprit/core`: the low-level building blocks under the functional
  * API, for advanced use such as custom registries, AST tooling or a dialect of
  * your own. Everything here works on plain AST nodes and explicit registries.
+ *
+ * @example
+ * ```typescript
+ * import { parseModern, evaluate, createModernRegistry } from '@syncrea/exprit/core';
+ *
+ * evaluate(parseModern('a + b'), createModernRegistry(), { a: 1, b: 2 }); // 3
+ * ```
+ *
+ * @packageDocumentation
  */
 export * from '@exprit/core';
 export {
