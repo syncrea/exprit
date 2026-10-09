@@ -47,6 +47,12 @@ export default [
               sourceTag: 'layer:cli',
               onlyDependOnLibsWithTags: ['layer:public'],
             },
+            // The docs site uses the library the way users do: only through
+            // the published package.
+            {
+              sourceTag: 'layer:docs',
+              onlyDependOnLibsWithTags: ['layer:public'],
+            },
           ],
         },
       ],

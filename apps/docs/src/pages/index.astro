@@ -1,0 +1,445 @@
+---
+import { Code } from 'astro:components';
+
+import bundleSize from '../../.generated/bundle-size.json';
+import HeroDemo from '../components/HeroDemo.astro';
+import MiniPlayground from '../components/MiniPlayground.astro';
+import Spark from '../components/Spark.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE } from '../lib/site';
+import { sparkTheme } from '../styles/shiki-theme.mjs';
+
+const pricing = `import { parse, evaluate } from '@syncrea/exprit';
+
+const total = parse('2 + price * qty');
+
+evaluate(total, { price: 4.5, qty: 3 });
+// → 15.5`;
+
+const functional = `const env = createEnvironment({ dialect: 'modern' });
+const vat = extend(env, { consts: { VAT: 0.25 } });
+
+const gross = compile(parse('net * (1 + VAT)', vat));
+gross({ net: 200 }); // 250`;
+
+const cli = `$ exprit -d modern -v 'xs=[1,2,3]' "xs.map(x => x * x)"
+[1,4,9]`;
+---
+
+<BaseLayout>
+  <main id="main">
+    <section class="hero dot-grid" aria-labelledby="hero-title">
+      <div class="container hero-inner">
+        <p class="hero-pill">drop-in replacement for expr-eval</p>
+        <h1 id="hero-title">Expressions,<br />evaluated.</h1>
+        <p class="hero-lede">
+          A small, fully typed expression engine for TypeScript. Parse the formulas your users write and evaluate them
+          safely in any JavaScript runtime, without ever touching <code>eval</code>.
+        </p>
+        <HeroDemo />
+        <div class="hero-actions">
+          <span class="install-pill"><span class="prompt" aria-hidden="true">$</span>{SITE.installCommand}</span>
+          <a class="btn btn-inverse" href="/getting-started/">Read the docs</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="container what" aria-labelledby="what-title">
+      <div class="what-copy">
+        <p class="eyebrow">What it is</p>
+        <h2 id="what-title">A tiny language for the formulas your users write.</h2>
+        <p>
+          Pricing rules, eligibility checks, config switches, spreadsheet-style calculators. Hand exprit a string and
+          your variables; get back a value. Nothing else in your app is reachable from inside an expression.
+        </p>
+      </div>
+      <div class="code-card">
+        <div class="code-card-head">pricing.ts</div>
+        <Code code={pricing} lang="ts" theme={sparkTheme} />
+      </div>
+    </section>
+
+    <section class="features" aria-labelledby="features-title">
+      <div class="container features-inner">
+        <h2 id="features-title">Small enough to forget about. Strict enough to trust.</h2>
+        <div class="feature-grid">
+          <article class="feature">
+            <p class="feature-num">01 · parity</p>
+            <h3>Drop-in for expr-eval</h3>
+            <p>Same parse-then-evaluate flow, and it passes expr-eval's own test suite. Swap the import, keep your stored expressions.</p>
+            <div class="diff" role="img" aria-label="Diff: the import changes from expr-eval to @syncrea/exprit">
+              <div class="diff-del"><span class="diff-sign">−</span><span class="tok-kw">import</span> {'{'} Parser {'}'} <span class="tok-kw">from</span> <span class="tok-str">'expr-eval'</span></div>
+              <div class="diff-ins"><span class="diff-sign">+</span><span class="tok-kw">import</span> {'{'} Parser {'}'} <span class="tok-kw">from</span> <span class="tok-str">'@syncrea/exprit'</span></div>
+            </div>
+          </article>
+
+          <article class="feature">
+            <p class="feature-num">02 · dialects</p>
+            <h3>Two syntaxes, one engine</h3>
+            <p>Legacy for compatibility, modern for expressions that read like JavaScript. Both parse to the same typed AST.</p>
+            <dl class="dialects">
+              <dt>legacy</dt>
+              <dd>age <span class="tok-op">&gt;=</span> <span class="tok-num">18</span> <span class="tok-kw">and not</span> banned</dd>
+              <dt>modern</dt>
+              <dd>age <span class="tok-op">&gt;=</span> <span class="tok-num">18</span> <span class="tok-op">&amp;&amp; !</span>banned</dd>
+            </dl>
+          </article>
+
+          <article class="feature">
+            <p class="feature-num">03 · safety</p>
+            <h3>Safe in the browser</h3>
+            <p>
+              No <code>eval</code>, no <code>new Function</code>, no prototype access. An expression sees the variables you pass
+              and nothing more, so user input can run client-side.
+            </p>
+          </article>
+
+          <article class="feature">
+            <p class="feature-num">04 · footprint</p>
+            <h3>Small and fully typed</h3>
+            <p>Written in TypeScript, typed end to end. Zero dependencies, ESM and CommonJS.</p>
+            <p class="size">
+              <span class="size-num">{bundleSize.gzipKb}</span><span class="size-unit">kB min + gzip</span>
+            </p>
+            <p class="size-note">The whole package with every export, measured from the build these docs ship with.</p>
+          </article>
+
+          <article class="feature">
+            <p class="feature-num">05 · functional</p>
+            <h3>Frozen values, pure functions</h3>
+            <p>Environments and parsed expressions are immutable. Your variables are only read, never modified.</p>
+            <div class="feature-code">
+              <Code code={functional} lang="ts" theme={sparkTheme} />
+            </div>
+          </article>
+
+          <article class="feature">
+            <p class="feature-num">06 · cli</p>
+            <h3>In your terminal, too</h3>
+            <p>
+              <code>@syncrea/exprit-cli</code> evaluates one-shot expressions, lines from stdin, or opens a REPL, in either dialect.
+            </p>
+            <div class="feature-code">
+              <Code code={cli} lang="shellsession" theme={sparkTheme} />
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="container playground-section" aria-labelledby="mini-heading">
+      <MiniPlayground />
+    </section>
+
+    <section class="cta dot-grid" aria-labelledby="cta-title">
+      <div class="container cta-inner">
+        <Spark size={40} animated />
+        <h2 id="cta-title">Install. Parse. Evaluate.</h2>
+        <span class="install-pill install-lg"><span class="prompt" aria-hidden="true">$</span>{SITE.installCommand}</span>
+        <div class="cta-actions">
+          <a class="btn btn-primary" href="/getting-started/">Getting started</a>
+          <a class="btn" href="/api/">API reference</a>
+          <a class="btn" href="/playground/">Playground</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .hero {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .hero-inner {
+    padding-top: 96px;
+    padding-bottom: 112px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 28px;
+  }
+
+  .hero-pill {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--soft);
+  }
+
+  h1 {
+    margin: 0;
+    font-weight: 600;
+    font-size: clamp(48px, 8.4vw, 104px);
+    line-height: 0.98;
+    letter-spacing: -0.045em;
+  }
+
+  .hero-lede {
+    margin: 0;
+    max-width: 620px;
+    font-size: clamp(17px, 2vw, 20px);
+    line-height: 1.55;
+    color: var(--soft);
+  }
+
+  .hero-actions,
+  .cta-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 8px;
+    max-width: 100%;
+  }
+
+  .what {
+    padding-top: 128px;
+    padding-bottom: 128px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr));
+    gap: 56px;
+    align-items: center;
+  }
+
+  .what-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .what h2 {
+    margin: 0;
+    font-weight: 600;
+    font-size: clamp(34px, 4.4vw, 52px);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+  }
+
+  .what-copy > p:last-child {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--soft);
+  }
+
+  .what :global(pre.astro-code) {
+    padding: 22px;
+    font-size: 15px;
+  }
+
+  .features {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .features-inner {
+    padding-top: 112px;
+    padding-bottom: 112px;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .features h2 {
+    margin: 0;
+    max-width: 720px;
+    font-weight: 600;
+    font-size: clamp(30px, 3.6vw, 44px);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(480px, 100%), 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .feature {
+    background: var(--bg);
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .feature-num {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--accent-ink);
+  }
+
+  .feature h3 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 24px;
+    letter-spacing: -0.02em;
+  }
+
+  .feature > p {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--soft);
+  }
+
+  .diff {
+    margin-top: 6px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.9;
+    overflow-x: auto;
+  }
+
+  .diff div {
+    padding: 2px 14px;
+    white-space: nowrap;
+  }
+
+  .diff-del {
+    background: var(--del);
+  }
+
+  .diff-ins {
+    background: var(--ins);
+  }
+
+  .diff-sign {
+    display: inline-block;
+    width: 1.4em;
+    color: var(--muted);
+  }
+
+  .dialects {
+    margin: 6px 0 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 16px;
+    align-items: baseline;
+    font-family: var(--font-mono);
+    font-size: 14px;
+  }
+
+  .dialects dt {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .dialects dd {
+    margin: 0;
+  }
+
+  .size {
+    margin: 6px 0 0;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .size-num {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 48px;
+    letter-spacing: -0.04em;
+    color: var(--accent-ink);
+  }
+
+  .size-unit {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .feature > .size-note {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .feature-code {
+    margin-top: 6px;
+    min-width: 0;
+  }
+
+  .feature-code :global(pre.astro-code) {
+    padding: 14px 16px;
+    font-size: 13.5px;
+    line-height: 1.75;
+    background-color: var(--surface) !important;
+  }
+
+  .playground-section {
+    padding-top: 128px;
+    padding-bottom: 128px;
+  }
+
+  .cta {
+    border-top: 1px solid var(--line);
+  }
+
+  .cta-inner {
+    padding-top: 120px;
+    padding-bottom: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 28px;
+  }
+
+  .cta h2 {
+    margin: 0;
+    font-weight: 600;
+    font-size: clamp(36px, 5vw, 64px);
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+
+  .install-lg {
+    min-height: 56px;
+    padding: 0 22px;
+    border-radius: 14px;
+    background: var(--surface);
+    font-size: 17px;
+  }
+
+  @media (max-width: 640px) {
+    .hero-inner {
+      padding-top: 64px;
+      padding-bottom: 72px;
+    }
+
+    .what,
+    .playground-section {
+      padding-top: 80px;
+      padding-bottom: 80px;
+    }
+
+    .features-inner,
+    .cta-inner {
+      padding-top: 80px;
+      padding-bottom: 80px;
+    }
+
+    .feature {
+      padding: 24px;
+    }
+  }
+</style>

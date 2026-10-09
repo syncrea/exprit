@@ -1,0 +1,146 @@
+{
+  "name": "@exprit/docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The exprit documentation website (exprit.syncrea.ch).",
+  "type": "module",
+  "nx": {
+    "name": "docs",
+    "tags": [
+      "scope:docs",
+      "layer:docs"
+    ],
+    "targets": {
+      "api-docs": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "node scripts/api-docs.mjs",
+          "cwd": "{projectRoot}"
+        },
+        "cache": true,
+        "inputs": [
+          "{projectRoot}/typedoc.json",
+          "{projectRoot}/scripts/api-docs.mjs",
+          "^production"
+        ],
+        "outputs": [
+          "{projectRoot}/.generated/api"
+        ]
+      },
+      "bundle-size": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "node scripts/bundle-size.mjs",
+          "cwd": "{projectRoot}"
+        },
+        "cache": true,
+        "dependsOn": [
+          "^build"
+        ],
+        "inputs": [
+          "{projectRoot}/scripts/bundle-size.mjs",
+          "^production"
+        ],
+        "outputs": [
+          "{projectRoot}/.generated/bundle-size.json"
+        ]
+      },
+      "build": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "astro build",
+          "cwd": "{projectRoot}"
+        },
+        "cache": true,
+        "dependsOn": [
+          "^build",
+          "api-docs",
+          "bundle-size"
+        ],
+        "inputs": [
+          "production",
+          "^production"
+        ],
+        "outputs": [
+          "{projectRoot}/dist"
+        ]
+      },
+      "dev": {
+        "executor": "nx:run-commands",
+        "continuous": true,
+        "options": {
+          "command": "astro dev",
+          "cwd": "{projectRoot}"
+        },
+        "dependsOn": [
+          "^build",
+          "api-docs",
+          "bundle-size"
+        ]
+      },
+      "preview": {
+        "executor": "nx:run-commands",
+        "continuous": true,
+        "options": {
+          "command": "astro preview",
+          "cwd": "{projectRoot}"
+        },
+        "dependsOn": [
+          "build"
+        ]
+      },
+      "typecheck": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "astro sync && astro-check",
+          "cwd": "{projectRoot}"
+        },
+        "cache": true,
+        "dependsOn": [
+          "^build",
+          "api-docs",
+          "bundle-size"
+        ],
+        "inputs": [
+          "default",
+          "^production"
+        ]
+      },
+      "e2e": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "playwright test",
+          "cwd": "{projectRoot}"
+        },
+        "dependsOn": [
+          "build"
+        ]
+      },
+      "og-image": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "node scripts/og-image.mjs",
+          "cwd": "{projectRoot}"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@astrojs/mdx": "8.0.2",
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.13",
+    "@fontsource/geist-mono": "5.3.0",
+    "@fontsource/geist-sans": "5.3.0",
+    "@syncrea/exprit": "workspace:*",
+    "astro": "7.3.5"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@playwright/test": "1.63.0",
+    "typedoc": "0.28.20",
+    "typedoc-plugin-markdown": "4.13.1",
+    "typescript": "6.0.3",
+    "vite": "8.3.4"
+  }
+}

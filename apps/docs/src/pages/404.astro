@@ -1,0 +1,51 @@
+---
+import Wordmark from '../components/Wordmark.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Page not found" description="This page does not exist.">
+  <main id="main" class="not-found dot-grid">
+    <Wordmark size={72} />
+    <h1>This expression has no value.</h1>
+    <p>The page you were looking for does not exist, or it moved.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="/">Home</a>
+      <a class="btn" href="/getting-started/">Getting started</a>
+      <a class="btn" href="/api/">API reference</a>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .not-found {
+    min-height: 70vh;
+    padding: 96px var(--gutter);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    text-align: center;
+  }
+
+  h1 {
+    margin: 16px 0 0;
+    font-weight: 600;
+    font-size: clamp(30px, 4vw, 44px);
+    letter-spacing: -0.03em;
+  }
+
+  p {
+    margin: 0;
+    color: var(--soft);
+    font-size: 18px;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 12px;
+  }
+</style>

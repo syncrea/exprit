@@ -1,0 +1,557 @@
+---
+import { run, viewOutcome } from '../lib/engine';
+import { PRESET_GROUP_LABELS, PRESETS, type PresetGroup } from '../lib/presets';
+import { parseVariable } from '../lib/variables';
+import Spark from './Spark.astro';
+
+const initialPreset = PRESETS[0];
+const initialSource = initialPreset.sources.modern ?? '';
+const initialVariables = Object.fromEntries(
+  Object.entries(initialPreset.variables).map(([name, value]) => {
+    const parsed = parseVariable(value);
+    return [name, parsed.ok ? parsed.value : undefined];
+  }),
+);
+const initial = viewOutcome(run(initialSource, 'modern', initialVariables));
+const groups = (Object.keys(PRESET_GROUP_LABELS) as PresetGroup[]).map((group) => ({
+  group,
+  label: PRESET_GROUP_LABELS[group],
+  presets: PRESETS.filter((preset) => preset.group === group),
+}));
+const tabs = [
+  { id: 'ast', label: 'AST' },
+  { id: 'tokens', label: 'Tokens' },
+  { id: 'printed', label: 'Printed' },
+] as const;
+---
+
+<exprit-playground class="pg">
+  <div class="pg-toolbar">
+    <h1>Playground</h1>
+    <div class="segmented" role="group" aria-label="Dialect">
+      <button type="button" data-dialect="modern" aria-pressed="true">modern</button>
+      <button type="button" data-dialect="legacy" aria-pressed="false">legacy</button>
+    </div>
+    <div class="pg-example">
+      <label for="pg-example">Example</label>
+      <select id="pg-example" class="field" data-example-select>
+        <option value="" disabled>Custom expression</option>
+        {
+          groups.map(({ label, presets }) => (
+            <optgroup label={label}>
+              {presets.map((preset) => (
+                <option value={preset.id} selected={preset.id === initialPreset.id}>
+                  {preset.label}
+                </option>
+              ))}
+            </optgroup>
+          ))
+        }
+      </select>
+    </div>
+    <div class="pg-toolbar-end">
+      <button type="button" class="btn pg-copy" data-copy-link>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false">
+          <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path>
+        </svg>
+        Copy link
+      </button>
+      <span class="visually-hidden" role="status" data-status></span>
+    </div>
+  </div>
+  <p class="pg-note" data-note>{initialPreset.note}</p>
+
+  <noscript>
+    <p class="pg-noscript">The playground runs exprit in your browser and needs JavaScript. The rest of the documentation works without it.</p>
+  </noscript>
+
+  <div class="pg-grid">
+    <section class="pg-pane pg-input" aria-labelledby="pg-expr-label">
+      <div class="pane-head">
+        <span id="pg-expr-label">expression</span>
+        <span data-dialect-label>modern dialect</span>
+      </div>
+      <div class="pg-editor" data-editor>
+        <textarea class="pg-fallback" aria-labelledby="pg-expr-label" spellcheck="false" data-fallback>{initialSource}</textarea>
+      </div>
+      <div class="pg-error-detail" data-error-detail hidden>
+        <pre data-error-snippet></pre>
+      </div>
+
+      <div class="pane-head pane-head-split">
+        <span id="pg-vars-label">variables</span>
+        <span class="pane-hint">found with <code>variables(parse(…))</code></span>
+      </div>
+      <div class="pg-vars" role="group" aria-labelledby="pg-vars-label" data-variables>
+        <p class="pg-empty">Loading…</p>
+      </div>
+    </section>
+
+    <section class="pg-pane pg-output" aria-label="Output">
+      <div class="pg-result dot-grid">
+        <p class="pane-label" id="pg-result-label">result</p>
+        <div class="pg-value">
+          <Spark size={26} />
+          <output id="pg-result" aria-labelledby="pg-result-label" data-result class:list={{ 'is-error': initial.isError, 'is-long': initial.isLong }}>
+            {initial.text}
+          </output>
+        </div>
+        <p class="pg-meta" id="pg-result-meta" data-meta>{initial.type}</p>
+      </div>
+
+      <div class="pg-tabs" role="tablist" aria-label="Inspect">
+        {
+          tabs.map((tab, index) => (
+            <button
+              type="button"
+              role="tab"
+              id={`pg-tab-${tab.id}`}
+              aria-controls={`pg-panel-${tab.id}`}
+              aria-selected={index === 0 ? 'true' : 'false'}
+              tabindex={index === 0 ? 0 : -1}
+              data-tab={tab.id}
+            >
+              {tab.label}
+            </button>
+          ))
+        }
+      </div>
+      {
+        tabs.map((tab, index) => (
+          <div
+            class="pg-panel"
+            role="tabpanel"
+            id={`pg-panel-${tab.id}`}
+            aria-labelledby={`pg-tab-${tab.id}`}
+            tabindex="0"
+            hidden={index !== 0}
+            data-panel={tab.id}
+          />
+        ))
+      }
+    </section>
+  </div>
+</exprit-playground>
+
+<script>
+  import '../scripts/playground';
+</script>
+
+<style>
+  .pg {
+    display: block;
+    max-width: var(--wide);
+    margin: 0 auto;
+    padding: 24px var(--gutter) 56px;
+  }
+
+  .pg-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+  }
+
+  h1 {
+    margin: 0 8px 0 0;
+    font-weight: 600;
+    font-size: 28px;
+    letter-spacing: -0.03em;
+  }
+
+  .pg-example {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .pg-example label {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .pg-example select {
+    min-height: 44px;
+    max-width: 100%;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    background-color: var(--surface);
+  }
+
+  .pg-toolbar-end {
+    margin-left: auto;
+  }
+
+  .pg-copy {
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+
+  .pg-copy[data-copied] {
+    border-color: var(--accent-ink);
+    color: var(--accent-ink);
+  }
+
+  .pg-note {
+    margin: 14px 0 20px;
+    color: var(--soft);
+    font-size: 15px;
+  }
+
+  .pg-noscript {
+    padding: 14px 18px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .pg-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--line);
+    gap: 1px;
+    min-height: 620px;
+  }
+
+  .pg-pane {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--bg);
+  }
+
+  .pane-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .pane-head-split {
+    border-top: 1px solid var(--line);
+  }
+
+  .pane-hint code {
+    font-size: 12px;
+    padding: 0;
+    background: none;
+    color: var(--muted);
+  }
+
+  .pg-editor {
+    flex: 1 1 auto;
+    min-height: 200px;
+    display: flex;
+  }
+
+  .pg-editor > :global(*) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pg-fallback {
+    width: 100%;
+    resize: none;
+    border: none;
+    padding: 18px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 20px;
+    line-height: 1.6;
+  }
+
+  .pg-error-detail {
+    padding: 0 18px 14px;
+  }
+
+  .pg-error-detail pre {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--err-bg);
+    color: var(--err);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .pg-vars {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 10px 16px;
+    background: var(--surface);
+    min-height: 160px;
+  }
+
+  .pg-vars :global(.pg-empty) {
+    margin: 8px 8px 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .pg-vars :global(.pg-var) {
+    display: grid;
+    grid-template-columns: minmax(80px, max-content) 112px minmax(0, 1fr);
+    align-items: start;
+    gap: 6px 12px;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+  }
+
+  .pg-vars :global(.pg-var-name) {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+
+  .pg-vars :global(.pg-var-type) {
+    min-height: 40px;
+    font-size: 13px;
+    background-color: var(--bg);
+  }
+
+  .pg-vars :global(.pg-var-value .field) {
+    width: 100%;
+    color: var(--num);
+  }
+
+  .pg-vars :global(.pg-var-value textarea.field) {
+    min-height: 72px;
+    padding: 8px 12px;
+    resize: vertical;
+    line-height: 1.5;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .pg-vars :global(.pg-var-value .field[aria-invalid='true']) {
+    border-color: var(--err);
+  }
+
+  .pg-vars :global(.pg-bool) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    font-family: var(--font-mono);
+    color: var(--num);
+  }
+
+  .pg-vars :global(.pg-bool input) {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--accent-ink);
+  }
+
+  .pg-vars :global(.pg-var-error) {
+    grid-column: 3;
+    margin: 0;
+    font-size: 13px;
+    color: var(--err);
+  }
+
+  .pg-vars :global(.pg-var-error:empty) {
+    display: none;
+  }
+
+  .pg-output {
+    background: var(--bg);
+  }
+
+  .pg-result {
+    padding: 22px 22px 26px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .pane-label {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .pg-value {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .pg-value output {
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 56px;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    color: var(--accent-ink);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .pg-value output.is-long {
+    font-size: 20px;
+    letter-spacing: -0.01em;
+    line-height: 1.45;
+    max-height: 320px;
+    overflow: auto;
+  }
+
+  .pg-value output.is-error {
+    font-weight: 400;
+    font-size: 17px;
+    letter-spacing: 0;
+    line-height: 1.5;
+    color: var(--err);
+  }
+
+  .pg-meta {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .pg-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .pg-tabs button {
+    min-height: 44px;
+    padding: 0 14px;
+    margin-bottom: -1px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .pg-tabs button[aria-selected='true'] {
+    border-bottom-color: var(--accent-ink);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .pg-panel {
+    flex: 1 1 auto;
+    min-height: 220px;
+    max-height: 520px;
+    overflow: auto;
+    padding: 16px 18px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .pg-panel:focus-visible {
+    outline-offset: -2px;
+  }
+
+  .pg-panel :global(.ast) {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .pg-panel :global(.ast-line) {
+    white-space: nowrap;
+  }
+
+  .pg-panel :global(.ast-label) {
+    color: var(--muted);
+  }
+
+  .pg-panel :global(.ast-kind) {
+    font-weight: 600;
+  }
+
+  .pg-panel :global(.chips) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .pg-panel :global(.chips li) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 10px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    white-space: pre;
+  }
+
+  .pg-panel :global(.panel-note) {
+    margin: 0 0 12px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .pg-panel :global(pre) {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 15px;
+  }
+
+  @media (max-width: 980px) {
+    .pg-grid {
+      grid-template-columns: minmax(0, 1fr);
+      min-height: 0;
+    }
+
+    .pg-toolbar-end {
+      margin-left: 0;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .pg-vars :global(.pg-var) {
+      grid-template-columns: minmax(0, 1fr) 112px;
+    }
+
+    .pg-vars :global(.pg-var-value),
+    .pg-vars :global(.pg-var-error) {
+      grid-column: 1 / -1;
+    }
+
+    .pg-value output {
+      font-size: 40px;
+    }
+
+    .pg-example {
+      width: 100%;
+    }
+
+    .pg-example select {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+</style>

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://typedoc-plugin-markdown.org/schema.json",
+  "tsconfig": "../../packages/exprit/tsconfig.lib.json",
+  "plugin": ["typedoc-plugin-markdown"],
+  "readme": "none",
+  "outputFileStrategy": "modules",
+  "entryFileName": "index",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "disableSources": true,
+  "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "hidePageTitle": true,
+  "useCodeBlocks": true,
+  "parametersFormat": "table",
+  "interfacePropertiesFormat": "table",
+  "classPropertiesFormat": "table",
+  "typeAliasPropertiesFormat": "table",
+  "typeDeclarationFormat": "table",
+  "propertyMembersFormat": "table",
+  "tableColumnSettings": {
+    "hideSources": true
+  },
+  "groupOrder": [
+    "Environments",
+    "Parse and evaluate",
+    "Transform and inspect",
+    "Errors",
+    "Interfaces",
+    "Type Aliases",
+    "*",
+    "expr-eval compatibility"
+  ],
+  "sort": ["source-order"],
+  "validation": {
+    "notExported": false,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "logLevel": "Warn"
+}

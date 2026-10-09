@@ -1,0 +1,298 @@
+import Callout from '../components/Callout.astro';
+import InstallTabs from '../components/InstallTabs.astro';
+import TryIt from '../components/TryIt.astro';
+
+Install exprit, parse your first expression and evaluate it with your own values. Then pick a dialect, add your own functions, and learn what the parse/evaluate split buys you.
+
+## Install
+
+<InstallTabs id="install-lib" packageName="@syncrea/exprit" />
+
+`@syncrea/exprit` is written in TypeScript and ships its types, ESM and CommonJS builds, and no runtime dependencies. It needs Node.js 20 or newer, or any modern browser.
+
+## Parse and evaluate
+
+`parse` turns a string into a frozen `ParsedExpression`. `evaluate` runs it with the variables you pass. Parse once, then evaluate as often as you like:
+
+```ts title="quick-start.ts"
+import { evaluate, parse } from '@syncrea/exprit';
+
+const total = parse('2 + price * qty');
+
+evaluate(total, { price: 4.5, qty: 3 }); // 15.5
+evaluate(total, { price: 10, qty: 1 }); // 12
+```
+
+<TryIt
+  id="quick"
+  source="2 + price * qty"
+  dialect="legacy"
+  scope={{ price: 4.5, qty: 3 }}
+/>
+
+<Callout title="Coming from expr-eval?">
+  <p>
+    Change the import and your existing expressions keep working in the legacy
+    dialect. The [migration section](#migrating-from-expr-eval) lists the few
+    intentional differences.
+  </p>
+</Callout>
+
+## Pick a dialect
+
+Without an environment, `parse` uses the **legacy** dialect: expr-eval's syntax, reproduced exactly. The **modern** dialect is the expression grammar of JavaScript. You choose the dialect when you create an environment, and a given string always parses the same way in it:
+
+```ts
+import { createEnvironment, evaluate, parse } from '@syncrea/exprit';
+
+const modern = createEnvironment({ dialect: 'modern' });
+
+evaluate(parse('user?.address?.city ?? "unknown"', modern), { user: {} }); // 'unknown'
+```
+
+Both dialects parse into the same AST and run on the same evaluator. Modern is a distinct grammar, not a superset: legacy spellings such as `and`, `not` or `2 ^ 3` (power) are rejected there, because they would clash with JavaScript.
+
+| Concept        | legacy                      | modern                                  |
+| -------------- | --------------------------- | --------------------------------------- |
+| Logic          | `a and b or not c`          | `a && b \|\| !c`                        |
+| Equality       | `a == b`, `a != b` (strict) | `a === b`, `a !== b` (`==` is rejected) |
+| Power          | `2 ^ 10`                    | `2 ** 10` (`^` is bitwise XOR)          |
+| Concatenation  | `"a" \|\| "b"`              | `"a" + "b"`, template literals          |
+| Missing values | n/a                         | `user?.name ?? "anonymous"`             |
+| Membership     | `x in [1, 2]`               | `[1, 2].includes(x)`                    |
+| Math           | `sin x`, `sqrt(2)`, `PI`    | `Math.sin(x)`, `Math.sqrt(2)`, `PI`     |
+| Functions      | `f(x) = x * 2; f(3)`        | `(x => x * 2)(3)`                       |
+| Variables      | `x = 3; x * 2`              | read only, no assignment                |
+
+<TryIt
+  id="modern"
+  source="items.filter(i => i.price > 10).map(i => i.name)"
+  dialect="modern"
+  scope={{
+    items: [
+      { name: 'pen', price: 2 },
+      { name: 'book', price: 12 },
+    ],
+  }}
+/>
+
+The modern dialect also offers arrow functions, spread, array and object literals, template literals, and the non-mutating methods of strings, arrays and numbers (`map`, `filter`, `reduce`, `toSorted`, `toUpperCase`, `toFixed`, ...). Frozen copies of `Math`, `Number` and `JSON` are available too. Assignment, statements, `new` and prototype access are not part of it.
+
+## Variables
+
+Variables are a plain object. Expressions see only its own properties, read nested values with member access, and never modify it:
+
+```ts
+const rule = parse('order.total > 100 and order.customer.vip');
+
+evaluate(rule, { order: { total: 120, customer: { vip: true } } }); // true
+```
+
+A name that is not defined throws: `undefined variable: qty` in legacy, `qty is not defined` in modern. In the modern dialect, `typeof qty === "undefined"` lets an expression check first.
+
+`variables` lists the names an expression expects, so you can ask for exactly the inputs a formula needs. Functions, and in the modern dialect constants and globals such as `Math`, are left out:
+
+```ts
+import { variables } from '@syncrea/exprit';
+
+variables(parse('price * qty + shipping')); // ['price', 'qty', 'shipping']
+variables(parse('user.age >= 18 and user.country == "CH"'), {
+  withMembers: true,
+});
+// ['user.age', 'user.country']
+```
+
+The [playground](/playground/) builds its variable panel this way.
+
+### Legacy assignments
+
+The legacy dialect keeps expr-eval's assignments and function definitions. `evaluate` runs them on a copy, so your object is never changed. `evaluateWithState` returns the variables afterwards as a new frozen object:
+
+```ts
+import { evaluateWithState } from '@syncrea/exprit';
+
+const input = { x: 1 };
+const { value, variables } = evaluateWithState(
+  parse('x = x + 1; x * 10'),
+  input,
+);
+// value: 20, variables: { x: 2 }, input is still { x: 1 }
+```
+
+## Functions and constants
+
+An environment holds the dialect, functions, constants and options. Functions and constants you add work in both dialects, next to the built-ins:
+
+```ts
+import { createEnvironment, evaluate, extend, parse } from '@syncrea/exprit';
+
+const env = createEnvironment({
+  dialect: 'modern',
+  functions: {
+    clamp: (value: number, low: number, high: number) =>
+      Math.min(Math.max(value, low), high),
+  },
+  consts: { VAT: 0.25 },
+});
+
+evaluate(parse('clamp(price * (1 + VAT), 0, 100)', env), { price: 100 }); // 100
+```
+
+Environments are frozen. `extend` derives a new one and leaves the base untouched:
+
+```ts
+const legacyEnv = extend(env, { dialect: 'legacy' });
+const noAssignments = createEnvironment({ operators: { assignment: false } });
+
+parse('x = 1', noAssignments); // throws: parse error [1:3]: Unknown character "="
+```
+
+The legacy built-ins are expr-eval's: operators such as `sin`, `sqrt`, `abs`, `round` and `not`; functions such as `min`, `max`, `pow`, `roundTo`, `map`, `filter`, `fold` and `sum`; and the constants `E` and `PI`. In the legacy dialect, `operators` switches individual operators off with expr-eval's option names, and `allowMemberAccess: false` rejects `a.b`. The [API reference](/api/#environmentoptions) lists every option.
+
+## Parse once, evaluate often
+
+Parsing and evaluating are separate steps on purpose. `parse` does the work of reading the string once and returns an immutable value you can cache, share between requests, or store next to the rule it came from. Everything else is a pure function of that value:
+
+```ts
+import {
+  compile,
+  parse,
+  print,
+  simplify,
+  substitute,
+  toFunction,
+} from '@syncrea/exprit';
+
+// Hot paths: walk the syntax tree once, then call a closure.
+const price = compile(parse('base * (1 + vat)'));
+price({ base: 200, vat: 0.25 }); // 250
+
+// Fold known values; each function returns a new expression.
+print(simplify(parse('x * (y + 1)'), { y: 2 })); // '(x * 3)'
+print(substitute(parse('x ^ 2'), 'x', 'a + 1')); // '((a + 1) ^ 2)'
+
+// A plain function of named parameters. Nothing is code-generated.
+const area = toFunction(parse('w * h'), ['w', 'h']);
+area(2, 3); // 6
+```
+
+`print` writes an expression back as source. In the legacy dialect its output matches expr-eval's `toString()` byte for byte; in the modern dialect it is fully parenthesised JavaScript.
+
+## Errors
+
+Malformed input throws an `ExpressionSyntaxError` while parsing. Its message keeps expr-eval's `parse error [line:column]:` shape, and it carries the position as fields:
+
+```ts
+import { ExpressionSyntaxError, parse } from '@syncrea/exprit';
+
+try {
+  parse('2 * (price +');
+} catch (error) {
+  if (error instanceof ExpressionSyntaxError) {
+    error.message; // 'parse error [1:13]: Unexpected end of expression'
+    error.reason; // 'Unexpected end of expression'
+    error.line; // 1
+    error.column; // 13 (1-based); error.offset is 12 (0-based)
+  }
+}
+```
+
+Unsupported JavaScript in the modern dialect gets a specific message rather than a generic one, for example `Use "===" instead of "==": loose equality is not supported`. Evaluation errors, such as an undefined name, are plain `Error`s. When an expression reaches for a blocked name, evaluation throws an `ExpressionSecurityError`.
+
+<TryIt id="errors" source="qty == 3" dialect="modern" scope={{ qty: 3 }} />
+
+## Running user input safely
+
+exprit never executes code: there is no `eval`, no `new Function`, and no generated JavaScript, not even in `toFunction`. The evaluator interprets a whitelisted AST, and an expression can only do what that AST and your environment allow:
+
+- **Only what you pass.** Variables are the own properties of your object; inherited names such as `toString` are not visible.
+- **Blocked names.** `__proto__`, `prototype`, `constructor`, `caller`, `callee`, `arguments` and the `__define*`/`__lookup*` accessors are rejected as names, members and object keys.
+- **Own properties and safe methods.** Member access returns own properties of objects and arrays. Inherited members are invisible unless they are non-mutating methods on the safe list, so `xs.push(4)` does not exist inside an expression.
+- **Frozen globals.** The modern dialect sees frozen copies of `Math`, `Number`, `JSON` and a few others, never the real built-ins.
+- **No mutation of inputs.** Modern expressions cannot assign. Legacy assignments go to a copy of your variables.
+
+<TryIt
+  id="sandbox"
+  source="user.constructor"
+  dialect="modern"
+  scope={{ user: { name: 'Ada' } }}
+/>
+
+## Command line
+
+`@syncrea/exprit-cli` puts the engine in your terminal: one-shot expressions, one expression per line from stdin, or an interactive REPL.
+
+```sh
+npm install --global @syncrea/exprit-cli
+```
+
+```sh
+exprit "2 ^ 10"                                         # 1024
+exprit -v x=3 "2 * x + 1"                               # 7
+exprit -d modern -v 'xs=[1,2,3]' "xs.map(x => x * x)"   # [1,4,9]
+echo "sqrt(16)" | exprit                                # 4
+exprit                                                  # interactive REPL
+```
+
+| Option                   | Meaning                                                              |
+| ------------------------ | -------------------------------------------------------------------- |
+| `-d, --dialect <name>`   | `legacy` (expr-eval syntax, default) or `modern` (JavaScript syntax) |
+| `-v, --var <name=value>` | Set a variable. The value is parsed as JSON, else kept as a string.  |
+| `-j, --json`             | Print results as JSON                                                |
+| `-h, --help`             | Show help                                                            |
+| `--version`              | Show the version                                                     |
+
+Reading from stdin evaluates one expression per line. In the legacy dialect, assignments persist from line to line (`x = 2`, then `x * 21`). The REPL adds `.dialect [legacy|modern]`, `.vars`, `.help` and `.exit`. Exit codes are `0` for success, `1` when an expression failed and `2` for invalid arguments.
+
+## Migrating from expr-eval
+
+Change the import and everything keeps working:
+
+```diff
+- import { Parser } from 'expr-eval';
++ import { Parser } from '@syncrea/exprit';
+```
+
+`Parser` is a deprecated alias of `CompatParser`, a class-based compatibility layer over the functional API. It keeps expr-eval's behaviour exactly, including mutable `parser.functions` tables and assignments that write into your values object. `require('@syncrea/exprit').Parser` and the default export work too. exprit runs expr-eval's own test suite against the legacy dialect in CI.
+
+Then move to the functional API at your own pace:
+
+| expr-eval / `CompatParser`            | Functional API                                     |
+| ------------------------------------- | -------------------------------------------------- |
+| `new Parser(options)`                 | `createEnvironment(options)`                       |
+| `parser.functions.f = fn`             | `extend(env, { functions: { f: fn } })`            |
+| `parser.parse(s)`                     | `parse(s, env)`                                    |
+| `expr.evaluate(values)`               | `evaluate(expr, values)` or `evaluateWithState`    |
+| `expr.simplify(v)`, `expr.toString()` | `simplify(expr, v)`, `print(expr)`                 |
+| `expr.toJSFunction('x,y')`            | `toFunction(expr, ['x', 'y'])`                     |
+| `compatExpr.toParsedExpression()`     | bridges a `CompatExpression` to the functional API |
+
+### Deliberate differences
+
+Almost every difference closes a security hole or fixes a bug in expr-eval 2.0.2:
+
+- **Own properties only.** Variables, members and constants are looked up as own properties, so `toString` or `x.constructor` no longer reach `Object.prototype`.
+- **Blocked names everywhere.** expr-eval blocked prototype access with a regex on variable names. exprit blocks the exact names listed above as names, members and keys; a name such as `myconstructor` is allowed.
+- **No code generation.** `toJSFunction` returns a closure over the simplified AST instead of compiling JavaScript with `new Function`. It now uses the same semantics as `evaluate`, so `+` is numeric there too.
+- **Bug fixes.** Member assignment (`a.b = 1`) is rejected instead of corrupting the evaluation stack; array literals need commas; `f(x).y` and `f(x)[0]` are accepted; string literals handle `'a\\'` correctly.
+- **Clearer errors.** Messages keep the `parse error [line:column]:` prefix, but the text after it is clearer, for example `Unexpected end of expression`.
+- **Typings.** `evaluate` on the compatibility classes returns `EvaluationResult` (an alias of `any`), so code written against expr-eval's signatures keeps compiling.
+
+## Next steps
+
+<div class="next-cards">
+  <a href="/api/">
+    <strong>API reference</strong>
+    <span>Every function, type and option, generated from the source.</span>
+  </a>
+  <a href="/api/core/">
+    <strong>Core (advanced)</strong>
+    <span>
+      Parsers, tokenizer, AST types and registries for your own tooling.
+    </span>
+  </a>
+  <a href="/playground/">
+    <strong>Playground</strong>
+    <span>Experiment with both dialects live.</span>
+  </a>
+</div>

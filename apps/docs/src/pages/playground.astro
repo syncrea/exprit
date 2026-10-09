@@ -1,0 +1,14 @@
+---
+import Playground from '../components/Playground.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Playground"
+  description="Try exprit live in your browser: both dialects, a variable panel, the syntax tree and the tokens, all from the real engine."
+  width="wide"
+>
+  <main id="main">
+    <Playground />
+  </main>
+</BaseLayout>

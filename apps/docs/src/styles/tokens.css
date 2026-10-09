@@ -1,0 +1,120 @@
+/*
+ * Design tokens for direction "A · Spark". Dark is the default theme; light
+ * applies when the visitor prefers it (and has not chosen dark) or picked it
+ * with the theme toggle, which sets `data-theme` on <html>.
+ *
+ * Contrast notes (WCAG AA, 4.5:1 for text): the comment colour is slightly
+ * lighter (dark) and darker (light) than in the artboards, so code comments
+ * pass on every surface they appear on.
+ */
+:root {
+  color-scheme: dark;
+
+  --bg: #0a0b0d;
+  --surface: #121418;
+  --raised: #16191e;
+  --line: #23262d;
+  --line-strong: #353943;
+  --text: #edeff2;
+  --soft: #b4bac3;
+  --muted: #8a9099;
+  --accent: #c6ff3d;
+  --accent-hover: #e2ff9a;
+  --accent-ink: #c6ff3d;
+  --on-accent: #0a0b0d;
+  --tint: #1a2210;
+  --dot: #1a1d22;
+  --focus: #c6ff3d;
+
+  --kw: #b9a3ff;
+  --str: #ffc58a;
+  --num: #c6ff3d;
+  --fn: #7dd3fc;
+  --op: #5eead4;
+  --cm: #7e848d;
+  --type: #f0a6ca;
+  --err: #ff9b8a;
+  --err-bg: #2a1614;
+  --del: #3a1e1e;
+  --ins: #1f2e10;
+
+  --font-sans:
+    'Geist Sans', 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    sans-serif;
+  --font-mono:
+    'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --content: 1120px;
+  --wide: 1440px;
+  --gutter: 24px;
+  --header-height: 68px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+
+    --bg: #f7f8f4;
+    --surface: #ffffff;
+    --raised: #f0f2ec;
+    --line: #e1e4dc;
+    --line-strong: #c9cdc2;
+    --text: #0e1012;
+    --soft: #3a3f47;
+    --muted: #5b616b;
+    --accent: #c6ff3d;
+    --accent-hover: #b4f01f;
+    --accent-ink: #4f7d00;
+    --on-accent: #0a0b0d;
+    --tint: #f1f8e2;
+    --dot: #e1e4dc;
+    --focus: #4f7d00;
+
+    --kw: #6d3fd9;
+    --str: #a2560b;
+    --num: #4f7d00;
+    --fn: #0b6fa8;
+    --op: #0f766e;
+    --cm: #646a73;
+    --type: #b0306a;
+    --err: #b42318;
+    --err-bg: #fdecea;
+    --del: #fbe4e1;
+    --ins: #eaf6d3;
+  }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f7f8f4;
+  --surface: #ffffff;
+  --raised: #f0f2ec;
+  --line: #e1e4dc;
+  --line-strong: #c9cdc2;
+  --text: #0e1012;
+  --soft: #3a3f47;
+  --muted: #5b616b;
+  --accent: #c6ff3d;
+  --accent-hover: #b4f01f;
+  --accent-ink: #4f7d00;
+  --on-accent: #0a0b0d;
+  --tint: #f1f8e2;
+  --dot: #e1e4dc;
+  --focus: #4f7d00;
+
+  --kw: #6d3fd9;
+  --str: #a2560b;
+  --num: #4f7d00;
+  --fn: #0b6fa8;
+  --op: #0f766e;
+  --cm: #646a73;
+  --type: #b0306a;
+  --err: #b42318;
+  --err-bg: #fdecea;
+  --del: #fbe4e1;
+  --ins: #eaf6d3;
+}

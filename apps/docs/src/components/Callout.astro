@@ -1,0 +1,31 @@
+---
+import Spark from './Spark.astro';
+
+interface Props {
+  readonly title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<aside class="callout" aria-label={title}>
+  <Spark size={18} />
+  <div class="callout-body">
+    <strong>{title}</strong>
+    <slot />
+  </div>
+</aside>
+
+<style>
+  .callout-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .callout-body :global(p) {
+    margin: 0;
+    color: var(--soft);
+  }
+</style>

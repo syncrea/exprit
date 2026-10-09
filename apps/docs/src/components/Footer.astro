@@ -1,0 +1,88 @@
+---
+import { NAV, SITE } from '../lib/site';
+import Spark from './Spark.astro';
+
+interface Props {
+  readonly width?: 'content' | 'wide';
+}
+
+const { width = 'content' } = Astro.props;
+---
+
+<footer class="site-footer">
+  <div class:list={['footer-inner', `width-${width}`]}>
+    <a class="footer-brand" href="/">
+      <Spark size={14} />
+      <span>exprit</span>
+      <span class="visually-hidden">home</span>
+    </a>
+    <nav aria-label="Footer">
+      <ul>
+        {NAV.map((item) => <li><a href={item.href}>{item.label}</a></li>)}
+        {SITE.repositoryUrl && <li><a href={SITE.repositoryUrl}>GitHub</a></li>}
+      </ul>
+    </nav>
+    <p class="legal">MIT License · © 2026 syncrea</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--line);
+  }
+
+  .footer-inner {
+    margin: 0 auto;
+    padding: 28px var(--gutter);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 28px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .width-content {
+    max-width: var(--content);
+  }
+
+  .width-wide {
+    max-width: var(--wide);
+  }
+
+  .footer-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    color: var(--text);
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    letter-spacing: -0.04em;
+  }
+
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 28px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  ul a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--muted);
+  }
+
+  ul a:hover {
+    color: var(--text);
+  }
+
+  .legal {
+    margin: 0 0 0 auto;
+  }
+</style>

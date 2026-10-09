@@ -1,0 +1,121 @@
+---
+import type { GetStaticPaths, InferGetStaticPropsType } from 'astro';
+import { getCollection, render } from 'astro:content';
+
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import Spark from '../../components/Spark.astro';
+import { cleanHeading, type PageLink, type SidebarGroup, type SidebarItem, type TocItem } from '../../lib/docs-nav';
+
+export const getStaticPaths = (async () => {
+  const pages = (await getCollection('api')).toSorted((a, b) => a.data.order - b.data.order);
+  return pages.map((entry, index) => ({
+    params: { slug: entry.data.route.replace(/^\/api\/?/, '').replace(/\/$/, '') || undefined },
+    props: {
+      entry,
+      pages: pages.map((page) => ({ id: page.id, route: page.data.route, navTitle: page.data.navTitle, order: page.data.order })),
+      prevIndex: index - 1,
+      nextIndex: index + 1,
+    },
+  }));
+}) satisfies GetStaticPaths;
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+
+const { entry, pages, prevIndex, nextIndex } = Astro.props;
+const { Content, headings } = await render(entry);
+
+const isNamespace = (order: number): boolean => !Number.isInteger(order);
+
+const referenceItems: readonly SidebarItem[] = pages.map((page) => ({
+  href: page.route,
+  label: page.navTitle,
+  mono: isNamespace(page.order),
+  nested: isNamespace(page.order),
+  current: page.id === entry.id,
+}));
+
+// One sidebar group per TypeDoc group (h2), listing its members (h3).
+const memberGroups: readonly SidebarGroup[] = headings
+  .filter((heading) => heading.depth === 2)
+  .map((group) => {
+    const start = headings.indexOf(group);
+    const end = headings.findIndex((heading, index) => index > start && heading.depth === 2);
+    const members = headings.slice(start + 1, end === -1 ? undefined : end).filter((heading) => heading.depth === 3);
+    return {
+      title: cleanHeading(group.text),
+      items: members.map((member) => ({ href: `#${member.slug}`, label: cleanHeading(member.text), mono: true })),
+    };
+  })
+  .filter((group) => group.items.length > 0);
+
+const sidebar: readonly SidebarGroup[] = [{ title: 'Reference', items: referenceItems }, ...memberGroups];
+
+const toc: readonly TocItem[] = headings
+  .filter((heading) => heading.depth === 2)
+  .map((heading) => ({ depth: heading.depth, slug: heading.slug, text: cleanHeading(heading.text) }));
+
+const pageLink = (index: number): PageLink | undefined => {
+  const page = pages[index];
+  return page ? { href: page.route, label: page.navTitle } : undefined;
+};
+const prev: PageLink = pageLink(prevIndex) ?? { href: '/getting-started/', label: 'Getting started' };
+const next: PageLink = pageLink(nextIndex) ?? { href: '/playground/', label: 'Playground' };
+
+const isMain = entry.data.route === '/api/';
+const isCore = entry.data.route === '/api/core/';
+---
+
+<DocsLayout
+  title={entry.data.title}
+  description={entry.data.description}
+  breadcrumb={['API', entry.data.navTitle]}
+  sidebarLabel="API reference"
+  sidebar={sidebar}
+  toc={toc}
+  prev={prev}
+  next={next}
+  monoTitle
+  badge={isNamespace(entry.data.order) ? 'namespace' : 'module'}
+  contentClass="api-content"
+>
+  {
+    isCore && (
+      <div class="callout lede-callout" slot="lede">
+        <Spark size={18} />
+        <div>
+          <strong>Advanced building blocks</strong>
+          <p>
+            Everything here is public, but low-level: plain AST nodes and explicit registries. Most applications only
+            need the <a href="/api/">functional API</a>.
+          </p>
+        </div>
+      </div>
+    )
+  }
+  <Content />
+  {
+    isMain && (
+      <div class="callout api-deltas">
+        <Spark size={18} />
+        <div>
+          <strong>Differences from expr-eval</strong>
+          <p>
+            The legacy dialect and the compatibility classes keep expr-eval's behaviour. The few deliberate differences
+            are security or bug fixes; the <a href="/getting-started/#migrating-from-expr-eval">migration guide</a>{' '}
+            lists them.
+          </p>
+        </div>
+      </div>
+    )
+  }
+</DocsLayout>
+
+<style>
+  .lede-callout {
+    margin-bottom: 24px;
+  }
+
+  .api-deltas {
+    margin-top: 40px;
+  }
+</style>

@@ -1,0 +1,208 @@
+---
+import { run, viewOutcome } from '../lib/engine';
+import Spark from './Spark.astro';
+
+const source = '2 + price * qty';
+const price = '4.5';
+const qty = '3';
+const examples = ['2 + price * qty', 'max(price, 5) * qty', 'qty > 2 ? price * 0.9 : price'];
+const initial = viewOutcome(run(source, 'modern', { price: Number(price), qty: Number(qty) }));
+---
+
+<exprit-live class="hero-demo" data-dialect="modern">
+  <div class="demo-head">
+    <label for="hero-expr">Live · evaluated in your browser</label>
+    <span class="demo-dialect">modern dialect</span>
+  </div>
+  <div class="demo-body">
+    <input
+      id="hero-expr"
+      class="demo-input"
+      type="text"
+      data-expr
+      value={source}
+      spellcheck="false"
+      autocomplete="off"
+      autocapitalize="off"
+      aria-describedby="hero-result"
+    />
+    <div class="demo-result">
+      <Spark size={22} animated />
+      <output id="hero-result" for="hero-expr hero-price hero-qty" data-result class:list={{ 'is-error': initial.isError, 'is-long': initial.isLong }}>
+        {initial.text}
+      </output>
+    </div>
+  </div>
+  <div class="demo-foot">
+    <div class="demo-vars">
+      <label for="hero-price">price</label>
+      <input id="hero-price" class="field demo-var" type="text" inputmode="decimal" data-var="price" data-type="number" value={price} />
+      <label for="hero-qty">qty</label>
+      <input id="hero-qty" class="field demo-var" type="text" inputmode="decimal" data-var="qty" data-type="number" value={qty} />
+    </div>
+    <div class="demo-examples" role="group" aria-label="Load an example">
+      {examples.map((example) => <button type="button" data-example={example}>{example}</button>)}
+    </div>
+  </div>
+</exprit-live>
+
+<script>
+  import '../scripts/live';
+</script>
+
+<style>
+  .hero-demo {
+    display: block;
+    width: 100%;
+    max-width: 860px;
+    margin-top: 16px;
+    text-align: left;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .demo-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .demo-head label {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .demo-dialect {
+    margin-left: auto;
+  }
+
+  .demo-body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 24px;
+    padding: 28px 24px;
+  }
+
+  .demo-input {
+    flex: 1 1 320px;
+    min-width: 0;
+    padding: 4px 6px;
+    margin: 0 -6px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: clamp(20px, 3vw, 28px);
+    letter-spacing: -0.02em;
+  }
+
+  .demo-input:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: 4px;
+  }
+
+  .demo-result {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  .demo-result output {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: clamp(32px, 5vw, 48px);
+    letter-spacing: -0.03em;
+    color: var(--accent-ink);
+    overflow-wrap: anywhere;
+  }
+
+  .demo-result output.is-long {
+    font-size: 22px;
+  }
+
+  .demo-result output.is-error {
+    font-weight: 400;
+    font-size: 16px;
+    letter-spacing: 0;
+    color: var(--err);
+  }
+
+  .demo-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+  }
+
+  .demo-vars {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .demo-vars label {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .demo-vars label + .demo-var + label {
+    margin-left: 8px;
+  }
+
+  .demo-var {
+    width: 76px;
+    min-height: 40px;
+    background: var(--surface);
+    color: var(--num);
+    font-size: 14px;
+  }
+
+  .demo-var[aria-invalid] {
+    border-color: var(--err);
+  }
+
+  .demo-examples {
+    margin-left: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .demo-examples button {
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--soft);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .demo-examples button:hover {
+    border-color: var(--line-strong);
+    color: var(--text);
+  }
+
+  @media (max-width: 720px) {
+    .demo-examples {
+      margin-left: 0;
+    }
+  }
+</style>

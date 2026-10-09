@@ -50,3 +50,9 @@ Thumbs.db
 .nx/migrate-runs
 vitest.config.*.timestamp*
 .vitest
+
+# docs site (apps/docs): Astro cache, generated API reference, test output
+apps/docs/.astro
+apps/docs/.generated
+apps/docs/test-results
+apps/docs/playwright-report

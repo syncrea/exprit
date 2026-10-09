@@ -1,0 +1,227 @@
+---
+import { run, viewOutcome } from '../lib/engine';
+
+const sources = {
+  modern: 'isMember && qty >= 3\n  ? price * qty * 0.9\n  : price * qty',
+  legacy: 'isMember and qty >= 3\n  ? price * qty * 0.9\n  : price * qty',
+};
+const price = '4.5';
+const qty = '3';
+const initial = viewOutcome(run(sources.modern, 'modern', { price: Number(price), qty: Number(qty), isMember: true }));
+---
+
+<exprit-live class="mini" data-dialect="modern" data-sources={JSON.stringify(sources)}>
+  <div class="mini-head">
+    <div class="mini-title">
+      <p class="eyebrow">Playground</p>
+      <h2 id="mini-heading">Change anything. Watch it evaluate.</h2>
+    </div>
+    <div class="segmented" role="group" aria-label="Dialect">
+      <button type="button" data-set-dialect="modern" aria-pressed="true">modern</button>
+      <button type="button" data-set-dialect="legacy" aria-pressed="false">legacy</button>
+    </div>
+  </div>
+
+  <div class="mini-grid">
+    <div class="mini-input">
+      <label class="label" for="mini-expr">Expression</label>
+      <textarea id="mini-expr" class="mini-textarea" data-expr rows="4" spellcheck="false" autocomplete="off" autocapitalize="off"
+        >{sources.modern}</textarea
+      >
+      <p class="label scope-label" id="mini-scope">Scope</p>
+      <div class="mini-scope" role="group" aria-labelledby="mini-scope">
+        <label for="mini-price">price</label>
+        <input id="mini-price" class="field" type="text" inputmode="decimal" data-var="price" data-type="number" value={price} />
+        <label for="mini-qty">qty</label>
+        <input id="mini-qty" class="field" type="text" inputmode="decimal" data-var="qty" data-type="number" value={qty} />
+        <label for="mini-member">isMember</label>
+        <span class="mini-check">
+          <input id="mini-member" type="checkbox" data-var="isMember" data-type="boolean" checked />
+          <span data-bool-label="isMember">true</span>
+        </span>
+      </div>
+    </div>
+    <div class="mini-output">
+      <p class="label">Result</p>
+      <div class="mini-result">
+        <output for="mini-expr mini-price mini-qty mini-member" data-result class:list={{ 'is-error': initial.isError, 'is-long': initial.isLong }}>
+          {initial.text}
+        </output>
+        <span class="mini-type" data-result-type>{initial.type}</span>
+        <span class="mini-type" data-dialect-label>modern dialect</span>
+      </div>
+      <a class="mini-link" href="/playground/">Open the full playground →</a>
+    </div>
+  </div>
+</exprit-live>
+
+<script>
+  import '../scripts/live';
+</script>
+
+<style>
+  .mini {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .mini-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px 32px;
+  }
+
+  .mini-title {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    flex: 1 1 420px;
+  }
+
+  .mini-title h2 {
+    margin: 0;
+    font-weight: 600;
+    font-size: clamp(32px, 4vw, 48px);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+  }
+
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+    gap: 1px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    background: var(--line);
+  }
+
+  .mini-input {
+    background: var(--surface);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .mini-textarea {
+    resize: vertical;
+    min-height: 128px;
+    padding: 14px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 17px;
+    line-height: 1.6;
+  }
+
+  .mini-textarea:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .scope-label {
+    margin: 8px 0 0;
+  }
+
+  .mini-scope {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px 16px;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 15px;
+  }
+
+  .mini-scope label {
+    color: var(--soft);
+  }
+
+  .mini-scope .field {
+    max-width: 160px;
+    color: var(--num);
+  }
+
+  .mini-scope .field[aria-invalid] {
+    border-color: var(--err);
+  }
+
+  .mini-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    color: var(--num);
+  }
+
+  .mini-check input {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--accent-ink);
+  }
+
+  .mini-output {
+    background: var(--bg);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 280px;
+    min-width: 0;
+  }
+
+  .mini-output .label {
+    margin: 0;
+  }
+
+  .mini-result {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .mini-result output {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: clamp(48px, 7vw, 80px);
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: var(--accent-ink);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .mini-result output.is-long {
+    font-size: 24px;
+    letter-spacing: -0.01em;
+    line-height: 1.4;
+  }
+
+  .mini-result output.is-error {
+    font-weight: 400;
+    font-size: 18px;
+    letter-spacing: 0;
+    line-height: 1.5;
+    color: var(--err);
+  }
+
+  .mini-type {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .mini-link {
+    align-self: flex-start;
+    font-weight: 500;
+    font-size: 15px;
+  }
+</style>

@@ -1,0 +1,389 @@
+---
+import '../styles/prose.css';
+
+import Spark from '../components/Spark.astro';
+import type { PageLink, SidebarGroup, TocItem } from '../lib/docs-nav';
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  readonly title: string;
+  readonly description?: string;
+  /** Breadcrumb trail above the title; the last entry is the current page. */
+  readonly breadcrumb: readonly string[];
+  readonly sidebarLabel: string;
+  readonly sidebar: readonly SidebarGroup[];
+  readonly toc: readonly TocItem[];
+  readonly prev?: PageLink;
+  readonly next?: PageLink;
+  /** Render the H1 in Geist Mono (API module names). */
+  readonly monoTitle?: boolean;
+  /** A small badge next to the title, e.g. `module`. */
+  readonly badge?: string;
+  /** Extra class on the content element, e.g. `api-content`. */
+  readonly contentClass?: string;
+}
+
+const { title, description, breadcrumb, sidebarLabel, sidebar, toc, prev, next, monoTitle = false, badge, contentClass } = Astro.props;
+---
+
+<BaseLayout title={title} description={description} width="wide" showVersion>
+  <div class="docs">
+    <aside class="docs-sidebar" aria-label={sidebarLabel}>
+      <details class="sidebar-disclosure" open>
+        <summary>Contents</summary>
+        <div class="sidebar-groups">
+          {
+            sidebar.map((group) => (
+              <div class="sidebar-group">
+                <p class="sidebar-title">{group.title}</p>
+                <ul>
+                  {group.items.map((item) => (
+                    <li>
+                      <a
+                        href={item.href}
+                        aria-current={item.current ? 'page' : undefined}
+                        class:list={{ mono: item.mono, nested: item.nested }}
+                      >
+                        {item.current && <Spark size={12} fill="currentColor" />}
+                        {item.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          }
+        </div>
+      </details>
+    </aside>
+
+    <main id="main" class="docs-main">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          {
+            breadcrumb.map((crumb, index) => (
+              <li aria-current={index === breadcrumb.length - 1 ? 'page' : undefined}>{crumb}</li>
+            ))
+          }
+        </ol>
+      </nav>
+      <div class="title-row">
+        <h1 class:list={{ mono: monoTitle }}>{title}</h1>
+        {badge && <span class="badge">{badge}</span>}
+      </div>
+      <slot name="lede" />
+      <div class:list={['prose', contentClass]}>
+        <slot />
+      </div>
+      {
+        (prev || next) && (
+          <nav class="pager" aria-label="Pages">
+            {prev ? (
+              <a href={prev.href} class="pager-prev">
+                <span>← Previous</span>
+                <strong>{prev.label}</strong>
+              </a>
+            ) : (
+              <span />
+            )}
+            {next && (
+              <a href={next.href} class="pager-next">
+                <span>Next →</span>
+                <strong>{next.label}</strong>
+              </a>
+            )}
+          </nav>
+        )
+      }
+    </main>
+
+    <nav class="docs-toc" aria-label="On this page">
+      <p class="sidebar-title">On this page</p>
+      <ul>
+        {
+          toc.map((item) => (
+            <li class:list={{ deep: item.depth > 2 }}>
+              <a href={`#${item.slug}`}>{item.text}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+</BaseLayout>
+
+<style>
+  .docs {
+    max-width: var(--wide);
+    margin: 0 auto;
+    padding: 0 var(--gutter);
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr) 200px;
+    gap: 0 56px;
+    align-items: start;
+  }
+
+  .docs-sidebar,
+  .docs-toc {
+    position: sticky;
+    top: var(--header-height);
+    max-height: calc(100vh - var(--header-height));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .docs-sidebar {
+    padding: 36px 0;
+  }
+
+  .sidebar-disclosure > summary {
+    display: none;
+  }
+
+  .sidebar-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    font-size: 15px;
+  }
+
+  .sidebar-title {
+    margin: 0;
+    padding: 0 12px 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .docs-sidebar ul,
+  .docs-toc ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .docs-sidebar a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    color: var(--soft);
+    text-decoration: none;
+    line-height: 1.35;
+  }
+
+  .docs-sidebar a:hover {
+    color: var(--text);
+    background: var(--surface);
+  }
+
+  .docs-sidebar a.mono {
+    font-family: var(--font-mono);
+    font-size: 14px;
+  }
+
+  .docs-sidebar a.nested {
+    min-height: 32px;
+    padding: 4px 12px 4px 28px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .docs-sidebar a[aria-current='page'] {
+    background: var(--tint);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  .docs-main {
+    min-width: 0;
+    max-width: 820px;
+    padding: 40px 0 96px;
+  }
+
+  .breadcrumb ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .breadcrumb li + li::before {
+    content: '/';
+    padding: 0 8px;
+  }
+
+  .breadcrumb li[aria-current='page'] {
+    color: var(--soft);
+  }
+
+  .title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+    margin: 22px 0 22px;
+  }
+
+  h1 {
+    margin: 0;
+    font-weight: 600;
+    font-size: clamp(36px, 4vw, 48px);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    overflow-wrap: anywhere;
+  }
+
+  h1.mono {
+    font-family: var(--font-mono);
+    font-size: clamp(30px, 4vw, 44px);
+    letter-spacing: -0.04em;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: var(--tint);
+    color: var(--accent-ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .pager {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+    gap: 12px;
+  }
+
+  .pager a {
+    padding: 14px 18px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    color: var(--text);
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .pager a:hover {
+    border-color: var(--line-strong);
+  }
+
+  .pager span {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .pager strong {
+    font-weight: 600;
+  }
+
+  .pager-next {
+    text-align: right;
+    grid-column: -2;
+  }
+
+  .docs-toc {
+    padding: 44px 0;
+    font-size: 14px;
+  }
+
+  .docs-toc .sidebar-title {
+    padding: 0 0 8px;
+  }
+
+  .docs-toc a {
+    display: block;
+    padding: 4px 0;
+    color: var(--muted);
+    text-decoration: none;
+    line-height: 1.4;
+  }
+
+  .docs-toc a:hover {
+    color: var(--text);
+  }
+
+  .docs-toc li.deep a {
+    padding-left: 12px;
+    font-size: 13px;
+  }
+
+  @media (max-width: 1200px) {
+    .docs {
+      grid-template-columns: 240px minmax(0, 1fr);
+    }
+
+    .docs-toc {
+      display: none;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .docs {
+      display: block;
+    }
+
+    .docs-sidebar {
+      position: static;
+      max-height: none;
+      padding: 16px 0 0;
+    }
+
+    .sidebar-disclosure {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .sidebar-disclosure > summary {
+      display: flex;
+      align-items: center;
+      min-height: 48px;
+      padding: 0 16px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .sidebar-disclosure[open] > summary {
+      border-bottom: 1px solid var(--line);
+    }
+
+    .sidebar-groups {
+      padding: 16px 4px;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+
+    .docs-main {
+      padding-top: 24px;
+    }
+  }
+</style>
+
+<script>
+  // On narrow screens the sidebar starts collapsed so the content comes first.
+  const disclosure = document.querySelector<HTMLDetailsElement>('.sidebar-disclosure');
+  if (disclosure && window.matchMedia('(max-width: 900px)').matches) {
+    disclosure.open = false;
+  }
+</script>

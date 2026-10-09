@@ -1,0 +1,206 @@
+---
+/** Package manager tabs with a copy button. Without JavaScript all commands stay visible. */
+interface Props {
+  readonly id: string;
+  readonly packageName: string;
+}
+
+const { id, packageName } = Astro.props;
+const commands = [
+  { manager: 'npm', command: `npm i ${packageName}` },
+  { manager: 'pnpm', command: `pnpm add ${packageName}` },
+  { manager: 'yarn', command: `yarn add ${packageName}` },
+] as const;
+---
+
+<install-tabs class="install">
+  <div class="install-tabs" role="tablist" aria-label="Package manager">
+    {
+      commands.map(({ manager }, index) => (
+        <button
+          type="button"
+          role="tab"
+          id={`${id}-tab-${manager}`}
+          aria-controls={`${id}-panel-${manager}`}
+          aria-selected={index === 0 ? 'true' : 'false'}
+          tabindex={index === 0 ? 0 : -1}
+        >
+          {manager}
+        </button>
+      ))
+    }
+  </div>
+  {
+    commands.map(({ manager, command }) => (
+      <div class="install-panel" role="tabpanel" id={`${id}-panel-${manager}`} aria-labelledby={`${id}-tab-${manager}`}>
+        <span class="prompt" aria-hidden="true">
+          $
+        </span>
+        <code>{command}</code>
+        <button type="button" class="copy" data-copy={command} aria-label={`Copy: ${command}`}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false">
+            <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+            <path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"></path>
+          </svg>
+        </button>
+      </div>
+    ))
+  }
+  <span class="visually-hidden" role="status" data-status></span>
+</install-tabs>
+
+<style>
+  .install {
+    display: block;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .install-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 0 8px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .install-tabs button {
+    min-height: 44px;
+    padding: 0 14px;
+    margin-bottom: -1px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .install-tabs button[aria-selected='true'] {
+    border-bottom-color: var(--accent-ink);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .install-panel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 12px 12px 18px;
+    font-family: var(--font-mono);
+    font-size: 15px;
+  }
+
+  .install-panel + .install-panel {
+    border-top: 1px solid var(--line);
+  }
+
+  /* Once enhanced, only the selected panel shows. */
+  :global(install-tabs[data-ready]) .install-panel[hidden] {
+    display: none;
+  }
+
+  :global(install-tabs[data-ready]) .install-panel + .install-panel {
+    border-top: none;
+  }
+
+  .install-panel code {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    background: none;
+    overflow-x: auto;
+    white-space: nowrap;
+    color: var(--text);
+  }
+
+  .prompt {
+    color: var(--muted);
+  }
+
+  .copy {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--muted);
+  }
+
+  .copy:hover {
+    color: var(--text);
+    border-color: var(--line-strong);
+  }
+
+  .copy[data-copied] {
+    color: var(--accent-ink);
+    border-color: var(--accent-ink);
+  }
+</style>
+
+<script>
+  class InstallTabs extends HTMLElement {
+    connectedCallback(): void {
+      const tabs = [...this.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+      const select = (tab: HTMLButtonElement, focus: boolean): void => {
+        tabs.forEach((other) => {
+          const isSelected = other === tab;
+          other.setAttribute('aria-selected', String(isSelected));
+          other.tabIndex = isSelected ? 0 : -1;
+          const panel = this.querySelector<HTMLElement>(`#${other.getAttribute('aria-controls')}`);
+          if (panel) {
+            panel.hidden = !isSelected;
+          }
+        });
+        if (focus) {
+          tab.focus();
+        }
+      };
+      tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => select(tab, false));
+        tab.addEventListener('keydown', (event) => {
+          const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+          if (step !== 0) {
+            event.preventDefault();
+            select(tabs[(index + step + tabs.length) % tabs.length], true);
+          } else if (event.key === 'Home' || event.key === 'End') {
+            event.preventDefault();
+            select(tabs[event.key === 'Home' ? 0 : tabs.length - 1], true);
+          }
+        });
+      });
+      if (tabs[0]) {
+        select(tabs[0], false);
+      }
+      this.dataset['ready'] = '';
+
+      const status = this.querySelector<HTMLElement>('[data-status]');
+      this.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(button.dataset['copy'] ?? '');
+            button.dataset['copied'] = '';
+            if (status) {
+              status.textContent = 'Copied to the clipboard';
+            }
+            setTimeout(() => delete button.dataset['copied'], 1500);
+          } catch (error) {
+            console.warn('Copy failed', error);
+            if (status) {
+              status.textContent = 'Copying is not available here; select the command instead';
+            }
+          }
+        });
+      });
+    }
+  }
+
+  if (!customElements.get('install-tabs')) {
+    customElements.define('install-tabs', InstallTabs);
+  }
+</script>

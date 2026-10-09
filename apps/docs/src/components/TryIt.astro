@@ -1,0 +1,106 @@
+---
+/** An inline "Try it" box for the guide: one expression, a fixed scope, the real engine. */
+import type { Dialect } from '@syncrea/exprit';
+
+import { run, viewOutcome } from '../lib/engine';
+import Spark from './Spark.astro';
+
+interface Props {
+  readonly id: string;
+  readonly source: string;
+  readonly dialect?: Dialect;
+  readonly scope?: Readonly<Record<string, unknown>>;
+}
+
+const { id, source, dialect = 'legacy', scope = {} } = Astro.props;
+const initial = viewOutcome(run(source, dialect, scope));
+const scopeText = Object.entries(scope)
+  .map(([name, value]) => `${name} = ${JSON.stringify(value)}`)
+  .join(', ');
+const inputId = `try-${id}`;
+---
+
+<exprit-live class="try" data-dialect={dialect} data-scope={JSON.stringify(scope)}>
+  <div class="try-head">
+    <Spark size={12} fill="currentColor" />
+    <label for={inputId}>Try it · edit and it re-evaluates</label>
+    <span class="try-meta">{dialect}{scopeText && ` · scope: ${scopeText}`}</span>
+  </div>
+  <div class="try-body">
+    <input id={inputId} class="field try-input" type="text" data-expr value={source} spellcheck="false" autocomplete="off" autocapitalize="off" />
+    <output for={inputId} data-result class:list={{ 'is-error': initial.isError, 'is-long': initial.isLong }}>{initial.text}</output>
+  </div>
+</exprit-live>
+
+<script>
+  import '../scripts/live';
+</script>
+
+<style>
+  .try {
+    display: block;
+    border-radius: var(--radius);
+    border: 1px solid var(--accent-ink);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .try-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent-ink);
+  }
+
+  .try-meta {
+    margin-left: auto;
+    color: var(--muted);
+  }
+
+  .try-body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+    padding: 16px 18px;
+  }
+
+  .try-input {
+    flex: 1 1 300px;
+    min-width: 0;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .try output {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 26px;
+    color: var(--accent-ink);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .try output::before {
+    content: '→ ';
+  }
+
+  .try output.is-long {
+    font-size: 16px;
+  }
+
+  .try output.is-error {
+    font-weight: 400;
+    font-size: 14px;
+    color: var(--err);
+  }
+
+  .try output.is-error::before {
+    content: '';
+  }
+</style>
