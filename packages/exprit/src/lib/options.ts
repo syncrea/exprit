@@ -113,16 +113,54 @@ const OPTION_NAMES: Readonly<Record<string, string>> = {
   '()=': 'fndef',
 };
 
-export const isOperatorEnabled = (
+/**
+ * The modern dialect's operators mapped onto expr-eval's option names, so the
+ * same `operators` switches apply by meaning in both dialects. Modern-only
+ * operators (`& | ^ << >> >>> ~ typeof`) have no counterpart and stay enabled.
+ */
+const MODERN_OPTION_NAMES: Readonly<Record<string, string>> = {
+  '+': 'add',
+  '-': 'subtract',
+  '*': 'multiply',
+  '/': 'divide',
+  '%': 'remainder',
+  '**': 'power',
+  '===': 'comparison',
+  '!==': 'comparison',
+  '<': 'comparison',
+  '>': 'comparison',
+  '<=': 'comparison',
+  '>=': 'comparison',
+  '&&': 'logical',
+  '||': 'logical',
+  '!': 'logical',
+  '??': 'logical',
+  '?': 'conditional',
+  ':': 'conditional',
+  '[': 'array',
+};
+
+const isEnabledVia = (
+  names: Readonly<Record<string, string>>,
   operators: OperatorOptions | undefined,
   operator: string,
 ): boolean => {
-  const optionName = Object.hasOwn(OPTION_NAMES, operator)
-    ? OPTION_NAMES[operator]
-    : operator;
+  const optionName = Object.hasOwn(names, operator) ? names[operator] : operator;
   return (
     !operators ||
     !Object.hasOwn(operators, optionName) ||
     Boolean(operators[optionName])
   );
 };
+
+/** Whether a legacy operator (by symbol or option name) is switched on. */
+export const isOperatorEnabled = (
+  operators: OperatorOptions | undefined,
+  operator: string,
+): boolean => isEnabledVia(OPTION_NAMES, operators, operator);
+
+/** Whether a modern operator symbol is switched on, by the same option names. */
+export const isModernOperatorEnabled = (
+  operators: OperatorOptions | undefined,
+  operator: string,
+): boolean => isEnabledVia(MODERN_OPTION_NAMES, operators, operator);

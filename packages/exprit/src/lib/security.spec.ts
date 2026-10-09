@@ -2,7 +2,9 @@ import { createRequire } from 'node:module';
 
 import { DEFAULT_SAFE_METHODS } from '@exprit/registry';
 
+import { compile, evaluate, parse } from './api';
 import { CompatParser as Parser } from './compat-parser';
+import { createEnvironment } from './environment';
 
 interface SloppyHost {
   readonly step: (cb: () => unknown) => unknown;
@@ -139,5 +141,57 @@ describe('sandboxing', () => {
   it('keeps the shared safe-method whitelist frozen', () => {
     expect(Object.isFrozen(DEFAULT_SAFE_METHODS)).toBe(true);
     expect(Object.isFrozen(DEFAULT_SAFE_METHODS.array)).toBe(true);
+  });
+});
+
+// F2: the modern dialect used to ignore these switches, giving a false sense
+// of safety. Both must now be honoured in parse, evaluate and compile.
+describe('modern dialect honours hardening switches (F2)', () => {
+  const noMembers = createEnvironment({
+    dialect: 'modern',
+    allowMemberAccess: false,
+  });
+
+  it.each([
+    'a.b',
+    'a?.b',
+    'a["b"]',
+    'a?.["b"]',
+    '"x".toUpperCase()',
+    'obj.method()',
+  ])('rejects member access %s when allowMemberAccess is false', (source) => {
+    expect(() => parse(source, noMembers)).toThrow(/member access/);
+  });
+
+  it('still allows plain calls and array literals without member access', () => {
+    expect(evaluate(parse('f(2)', noMembers), { f: (n: number) => n + 1 })).toBe(
+      3,
+    );
+    expect(evaluate(parse('[1, 2, 3]', noMembers))).toEqual([1, 2, 3]);
+  });
+
+  it.each<[string, Record<string, boolean>]>([
+    ['2 * 3', { multiply: false }],
+    ['2 + 3', { add: false }],
+    ['2 - 3', { subtract: false }],
+    ['2 ** 3', { power: false }],
+    ['2 < 3', { comparison: false }],
+    ['a && b', { logical: false }],
+    ['a ?? b', { logical: false }],
+    ['a ? b : c', { conditional: false }],
+    ['[1, 2]', { array: false }],
+    ['a[0]', { array: false }],
+  ])('rejects %s when its operator is disabled', (source, operators) => {
+    const env = createEnvironment({ dialect: 'modern', operators });
+    expect(() => parse(source, env)).toThrow(/disabled|member access/);
+  });
+
+  it('leaves unrelated operators working when one is disabled', () => {
+    const env = createEnvironment({
+      dialect: 'modern',
+      operators: { multiply: false },
+    });
+    expect(evaluate(parse('2 + 3', env))).toBe(5);
+    expect(compile(parse('2 + 3', env))()).toBe(5);
   });
 });

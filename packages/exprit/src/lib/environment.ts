@@ -6,6 +6,7 @@ import {
 } from '@exprit/registry';
 
 import {
+  isModernOperatorEnabled,
   isOperatorEnabled,
   type Dialect,
   type OperatorOptions,
@@ -151,11 +152,17 @@ export const createEnvironment = (
  */
 export const DEFAULT_ENVIRONMENT: Environment = createEnvironment();
 
-/** Whether an operator is switched on in the environment. */
+/** Whether a legacy operator is switched on in the environment. */
 export const isEnabled = (
   environment: Environment,
   operator: string,
 ): boolean => isOperatorEnabled(environment.operators, operator);
+
+/** Whether a modern operator symbol is switched on in the environment. */
+export const isModernEnabled = (
+  environment: Environment,
+  operator: string,
+): boolean => isModernOperatorEnabled(environment.operators, operator);
 
 /** Builds the evaluator registry for an environment. */
 export const createRegistry = (environment: Environment): Registry =>

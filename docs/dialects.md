@@ -104,3 +104,19 @@ Rejected with a specific message: assignment, `==`/`!=`, statements and `;`,
 `new`, `function`, `this`, `in`, `instanceof`, array holes, block-bodied
 arrows, `-a ** b` without parentheses, and `??` mixed with `||`/`&&`
 without parentheses.
+
+### Hardening switches in the modern dialect
+
+`allowMemberAccess: false` and `operators` apply to the modern dialect too, by
+meaning. With `allowMemberAccess: false`, `a.b`, `a?.b`, `a[i]`, `a?.[i]` and
+method calls such as `"x".toUpperCase()` are rejected at parse time with a
+`member access is not permitted` error (plain calls and array literals are
+still allowed). The `operators` option names map onto the modern operators:
+`add` → `+`, `subtract` → `-`, `multiply` → `*`, `divide` → `/`,
+`remainder` → `%`, `power` → `**`, `comparison` → `=== !== < <= > >=`,
+`logical` → `&& || ! ??`, `conditional` → `?:`, and `array` → array literals
+`[...]` and indexing `a[i]`. A disabled operator is rejected at parse time
+(`operator "*" is disabled`). Option names with no modern counterpart
+(`concatenate`, `factorial`, `in`, `assignment`, `fndef`, and the named
+unary operators such as `sin`) are legacy-only and have no effect in modern.
+The modern-only operators `& | ^ << >> >>> ~ typeof` are not toggleable.

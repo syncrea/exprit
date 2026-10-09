@@ -86,14 +86,34 @@ const UNSUPPORTED_KEYWORDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Options that let the modern dialect honour the same hardening switches as the
+ * legacy dialect. When omitted, member access and every operator are allowed.
+ */
+export interface ModernGrammar {
+  /** Whether `a.b`, `a?.b`, `a[i]` and method calls are allowed. */
+  readonly allowMemberAccess: boolean;
+  /** Whether a modern operator symbol (`+`, `**`, `&&`, `?`, `[`, ...) is enabled. */
+  readonly isOperatorEnabled: (operator: string) => boolean;
+}
+
+const DEFAULT_GRAMMAR: ModernGrammar = {
+  allowMemberAccess: true,
+  isOperatorEnabled: () => true,
+};
+
+/**
  * Parses an expression written in the modern dialect, the expression grammar of
  * JavaScript without assignment or side effects, into the shared AST.
  *
  * @param source - The expression text
+ * @param grammar - Member-access and operator switches; everything is allowed by default
  * @returns The root AST node
  * @throws ExpressionSyntaxError when the expression is malformed or uses unsupported syntax
  */
-export const parseModern = (source: string): ExpressionNode => {
+export const parseModern = (
+  source: string,
+  grammar: ModernGrammar = DEFAULT_GRAMMAR,
+): ExpressionNode => {
   const tokens = tokenize(source, MODERN_TOKENIZER_CONFIG);
   const parenthesized = new WeakSet<ExpressionNode>();
   const inOptionalChain = new WeakSet<ExpressionNode>();
@@ -101,6 +121,20 @@ export const parseModern = (source: string): ExpressionNode => {
 
   const fail = (reason: string, at: number): never => {
     throw new ExpressionSyntaxError(reason, source, at);
+  };
+
+  /** Rejects an operator the environment switched off, by symbol. */
+  const requireOperator = (operator: string, at: number): void => {
+    if (!grammar.isOperatorEnabled(operator)) {
+      fail(`operator "${operator}" is disabled`, at);
+    }
+  };
+
+  /** Rejects `.`, `?.`, indexing and method calls when member access is off. */
+  const requireMemberAccess = (at: number): void => {
+    if (!grammar.allowMemberAccess) {
+      fail('member access is not permitted', at);
+    }
   };
 
   const peek = (offset = 0): Token =>
@@ -336,12 +370,14 @@ export const parseModern = (source: string): ExpressionNode => {
       return inner;
     }
     if (op === '[') {
+      requireOperator('[', token.start);
       return { type: 'Array', elements: parseElements(']') };
     }
     if (op === '{') {
       return parseObject();
     }
     if (PREFIX_OPERATORS.has(op)) {
+      requireOperator(op, token.start);
       return { type: 'Unary', operator: op, argument: parse(BP.prefix) };
     }
     return fail(`Unexpected ${describe(token)}`, token.start);
@@ -381,6 +417,7 @@ export const parseModern = (source: string): ExpressionNode => {
     optional: boolean,
     at: number,
   ): ExpressionNode => {
+    requireMemberAccess(at);
     if (accept('(')) {
       return markChain(
         { type: 'Call', callee: left, arguments: parseElements(')'), optional },
@@ -415,6 +452,7 @@ export const parseModern = (source: string): ExpressionNode => {
     const op = token.value as string;
     switch (op) {
       case '.': {
+        requireMemberAccess(token.start);
         const name = advance();
         if (name.type !== 'identifier') {
           return fail('Expected a property name', name.start);
@@ -433,6 +471,8 @@ export const parseModern = (source: string): ExpressionNode => {
       case '?.':
         return parseMember(left, true, token.start);
       case '[': {
+        requireMemberAccess(token.start);
+        requireOperator('[', token.start);
         const indexExpression = parse(0);
         expect(']');
         return markChain(
@@ -458,6 +498,7 @@ export const parseModern = (source: string): ExpressionNode => {
           false,
         );
       case '?': {
+        requireOperator('?', token.start);
         const consequent = parse(BP.assignment);
         expect(':');
         return {
@@ -476,6 +517,7 @@ export const parseModern = (source: string): ExpressionNode => {
           token.start,
         );
       case '??': {
+        requireOperator('??', token.start);
         const right = parse(BINARY_POWER['??']);
         if (
           isBareLogical(left, ['||', '&&']) ||
@@ -490,6 +532,7 @@ export const parseModern = (source: string): ExpressionNode => {
       }
       case '||':
       case '&&': {
+        requireOperator(op, token.start);
         const right = parse(BINARY_POWER[op]);
         if (isBareLogical(left, ['??']) || isBareLogical(right, ['??'])) {
           fail(`Cannot mix "${op}" with "??" without parentheses`, token.start);
@@ -497,6 +540,7 @@ export const parseModern = (source: string): ExpressionNode => {
         return { type: 'Logical', operator: op, left, right };
       }
       case '**':
+        requireOperator('**', token.start);
         if (left.type === 'Unary' && !parenthesized.has(left)) {
           fail(
             'Parenthesize the unary operand of "**", e.g. (-a) ** b',
@@ -510,6 +554,7 @@ export const parseModern = (source: string): ExpressionNode => {
           right: parse(BP.exponent - 1),
         };
     }
+    requireOperator(op, token.start);
     return {
       type: 'Binary',
       operator: op,
